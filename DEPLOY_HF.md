@@ -45,6 +45,32 @@ it falls back to chat-only and says so once.
 ## B — Host the app on a Hugging Face Space
 
 The repo ships a `Dockerfile` that serves the web app on port `7860` with the
+HF backend already selected. You can deploy it **automatically from GitHub**
+(recommended) or by hand.
+
+### B1 — Automatic deploy from GitHub (no local machine)
+
+A workflow (`.github/workflows/deploy-hf-space.yml`) creates the Space, sets its
+secrets, and uploads the app on every push to `main`. One-time setup:
+
+1. Create a **write** token at <https://huggingface.co/settings/tokens>.
+2. In GitHub → **Settings → Secrets and variables → Actions**:
+   - Secret **`HF_TOKEN`** — your HF write token (required).
+   - Secret **`JARVIS_WEB_TOKEN`** — optional; gates the public app (recommended).
+   - Variable **`HF_SPACE_NAME`** — optional; Space name (default `jarvis`).
+   - Variable **`JARVIS_HF_MODEL`** — optional; the served model id.
+3. Push to `main` (or run the workflow manually via **Actions → Deploy to
+   Hugging Face Space → Run workflow**).
+
+The workflow then creates `your-username/<space-name>`, copies `HF_TOKEN` (and
+`JARVIS_WEB_TOKEN`) into the Space's secrets, and deploys. Open the Space URL,
+paste your token in the app's **Settings**, and you're live — everything ran in
+the cloud. (To persist memory across restarts, also enable persistent storage —
+see the persistent-storage step under B2.)
+
+### B2 — Manual deploy via the HF UI
+
+The repo ships a `Dockerfile` that serves the web app on port `7860` with the
 HF backend already selected.
 
 1. **Create a Space:** <https://huggingface.co/new-space> → SDK **Docker** →
