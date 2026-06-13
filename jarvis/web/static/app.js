@@ -4,6 +4,7 @@
 const TOKEN_KEY = "jarvis_token";
 let token = localStorage.getItem(TOKEN_KEY) || "";
 let sending = false;
+let historyLoaded = false;
 
 const $ = (id) => document.getElementById(id);
 const messagesEl = $("messages");
@@ -60,6 +61,27 @@ async function loadInfo() {
     document.title = info.assistant_name;
   } catch (e) {
     $("backend-info").textContent = "offline — is the server running?";
+  }
+}
+
+// ── Past conversation ──────────────────────────────────────────────────
+async function loadHistory() {
+  if (historyLoaded) return;
+  try {
+    const res = await fetch("/api/history", { headers: authHeaders() });
+    if (!res.ok) return; // e.g. 401 before a token is set — retry after Save
+    const data = await res.json();
+    const msgs = data.messages || [];
+    historyLoaded = true;
+    if (!msgs.length) return;
+    for (const m of msgs) addMessage(m.role, m.text);
+    const divider = document.createElement("div");
+    divider.className = "history-divider";
+    divider.textContent = "ここから現在の会話";
+    messagesEl.appendChild(divider);
+    scrollToBottom();
+  } catch (e) {
+    /* ignore — chat still works without past history */
   }
 }
 
@@ -238,6 +260,7 @@ function saveSettings() {
   else localStorage.removeItem(TOKEN_KEY);
   closeSettings();
   loadInfo();
+  loadHistory();
 }
 
 // ── Wiring ─────────────────────────────────────────────────────────────
@@ -287,3 +310,4 @@ if ("serviceWorker" in navigator) {
 }
 
 loadInfo();
+loadHistory();
