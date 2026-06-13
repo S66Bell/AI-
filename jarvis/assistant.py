@@ -13,6 +13,7 @@ from .backends import Backend, make_backend
 from .config import Config
 from .memory import Memory
 from .persona import build_system_prompt
+from .store import Store
 from .tools import ToolContext, build_registry
 
 
@@ -32,8 +33,9 @@ class Assistant:
 
         # Local + HF backends run web tools themselves; Claude uses server-side ones.
         self.registry = build_registry(config, include_web=config.uses_local_web_tools)
+        self.store = Store(config.data_dir)
         self.tool_ctx = ToolContext(
-            config=config, memory=memory, confirm=confirm, notify=notify
+            config=config, memory=memory, confirm=confirm, notify=notify, store=self.store
         )
 
         self.backend: Backend = make_backend(

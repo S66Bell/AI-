@@ -212,6 +212,7 @@ jarvis/
   config.py        environment-driven configuration
   persona.py       the JARVIS personality (system prompt)
   memory.py        conversation transcript + long-term facts (on disk)
+  store.py         SQLite store for reminders / proactive follow-ups
   assistant.py     provider-agnostic orchestrator (persona + memory + tools)
   backends/
     base.py        the backend interface + agentic loop contract
