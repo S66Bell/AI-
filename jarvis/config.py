@@ -45,6 +45,10 @@ class Config:
     ollama_host: str
     ollama_model: str
     ollama_num_ctx: int
+    # Web / PWA front-end settings.
+    web_host: str
+    web_port: int
+    web_token: str | None
 
     @property
     def is_local(self) -> bool:
@@ -78,4 +82,9 @@ class Config:
             ollama_host=os.environ.get("JARVIS_OLLAMA_HOST", "http://localhost:11434"),
             ollama_model=os.environ.get("JARVIS_OLLAMA_MODEL", "qwen2.5:7b"),
             ollama_num_ctx=int(os.environ.get("JARVIS_OLLAMA_NUM_CTX", "8192")),
+            # Bind on all interfaces by default so a phone on the same Wi-Fi can
+            # reach it; put a token in front before exposing beyond the LAN.
+            web_host=os.environ.get("JARVIS_WEB_HOST", "0.0.0.0"),
+            web_port=int(os.environ.get("JARVIS_WEB_PORT", "8765")),
+            web_token=(os.environ.get("JARVIS_WEB_TOKEN") or None),
         )

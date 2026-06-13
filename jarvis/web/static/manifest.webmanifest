@@ -1,0 +1,19 @@
+{
+  "name": "JARVIS — your own AI",
+  "short_name": "JARVIS",
+  "description": "A private, self-hosted AI assistant, on your phone.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b1622",
+  "theme_color": "#0b1622",
+  "icons": [
+    {
+      "src": "/static/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

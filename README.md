@@ -120,6 +120,45 @@ System audio libraries are needed:
 
 Then run with `JARVIS_VOICE=1` or toggle `/voice` mid-session.
 
+## Use it from your phone (PWA)
+
+JARVIS ships with an installable web app, so you can talk to it from your phone
+while the brain — the model, your shell, your files — keeps running on your own
+machine. The phone is just the screen.
+
+**1. Install the web extras and start the server:**
+
+```bash
+pip install -r requirements-web.txt
+python serve.py
+```
+
+It prints a URL like `http://192.168.1.20:8765`.
+
+**2. On your phone (same Wi-Fi), open that URL** in the browser, then
+**Add to Home Screen**. It launches full-screen, like a native app:
+
+- Streams replies live, shows what JARVIS is doing, and pops a **Proceed /
+  Decline** dialog right on your phone before any destructive action runs.
+- The `⋮` menu has reset, memory, reasoning toggle, clear-history, and settings.
+
+**Reaching it when you're out:** the server binds to your LAN. To use it away
+from home, put it behind a tunnel (e.g. [Tailscale](https://tailscale.com),
+`cloudflared`, or `ngrok`) and **set a token first**:
+
+```bash
+JARVIS_WEB_TOKEN=your-long-secret python serve.py
+```
+
+Then enter the same token in the app's **Settings**. Without a token the API is
+open to anyone who can reach the host, so only run untokenised on a trusted LAN.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `JARVIS_WEB_HOST` | `0.0.0.0` | Interface to bind (LAN-reachable by default). |
+| `JARVIS_WEB_PORT` | `8765` | Port to serve the app on. |
+| `JARVIS_WEB_TOKEN` | — | If set, required to use the API (enter it in Settings). |
+
 ## How it's built
 
 ```
@@ -135,7 +174,16 @@ jarvis/
   tools/           shell, files, system, memory, and (local) web tools
   voice/           optional speech-to-text / text-to-speech
   cli.py           the interactive terminal interface
+  web/             FastAPI API + installable PWA (phone front-end)
+    server.py      wraps the same Assistant in a streaming HTTP API
+    static/        the Progressive Web App (HTML/CSS/JS, manifest, SW)
 ```
+
+Both front-ends — the terminal `cli.py` and the phone `web/` PWA — drive the
+**same** `Assistant` through the same four callbacks (stream text, status,
+reasoning, and confirm-before-destructive-action). The web layer just routes
+those over HTTP: events stream to the browser as newline-delimited JSON, and a
+confirmation is answered by a second request from the phone.
 
 The **backend** owns the conversation with the model and runs the agentic loop:
 stream the reply, let the model call tools, run them locally (gating destructive
@@ -168,5 +216,5 @@ This is a starting point, not a cage:
   Drop a module in `jarvis/tools/` and register it.
 - Tune the personality in `jarvis/persona.py`.
 - Try different local models in Ollama to trade speed for capability.
-- Swap the terminal UI for a web or mobile front-end — the `Assistant` and
-  backend classes are interface-agnostic.
+- Use it from your phone with the built-in PWA (`python serve.py`), or build
+  your own front-end — the `Assistant` and backend classes are interface-agnostic.
