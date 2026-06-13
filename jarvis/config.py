@@ -45,6 +45,10 @@ class Config:
     ollama_host: str
     ollama_model: str
     ollama_num_ctx: int
+    # Hugging Face Inference settings.
+    hf_token: str | None
+    hf_model: str
+    hf_base_url: str
     # Web / PWA front-end settings.
     web_host: str
     web_port: int
@@ -55,9 +59,27 @@ class Config:
         return self.provider == "ollama"
 
     @property
+    def is_hf(self) -> bool:
+        return self.provider == "hf"
+
+    @property
+    def is_claude(self) -> bool:
+        return self.provider == "claude"
+
+    @property
+    def uses_local_web_tools(self) -> bool:
+        """Backends that need JARVIS to run web search/fetch itself (i.e. not
+        Claude, which uses Anthropic's server-side web tools)."""
+        return not self.is_claude
+
+    @property
     def active_model(self) -> str:
         """The model name to show the user, whichever provider is active."""
-        return self.ollama_model if self.is_local else self.model
+        if self.is_local:
+            return self.ollama_model
+        if self.is_hf:
+            return self.hf_model
+        return self.model
 
     @classmethod
     def load(cls) -> "Config":
@@ -82,6 +104,18 @@ class Config:
             ollama_host=os.environ.get("JARVIS_OLLAMA_HOST", "http://localhost:11434"),
             ollama_model=os.environ.get("JARVIS_OLLAMA_MODEL", "qwen2.5:7b"),
             ollama_num_ctx=int(os.environ.get("JARVIS_OLLAMA_NUM_CTX", "8192")),
+            # Hugging Face Inference (JARVIS_PROVIDER=hf). Token is read from the
+            # standard HF env vars too, so it works on Spaces out of the box.
+            hf_token=(
+                os.environ.get("JARVIS_HF_TOKEN")
+                or os.environ.get("HF_TOKEN")
+                or os.environ.get("HUGGINGFACEHUB_API_TOKEN")
+                or None
+            ),
+            hf_model=os.environ.get("JARVIS_HF_MODEL", "Qwen/Qwen2.5-7B-Instruct"),
+            hf_base_url=os.environ.get(
+                "JARVIS_HF_BASE_URL", "https://router.huggingface.co/v1"
+            ),
             # Bind to localhost by default — it's a PC-local app. To reach it
             # from a phone on the same Wi-Fi, set JARVIS_WEB_HOST=0.0.0.0.
             web_host=os.environ.get("JARVIS_WEB_HOST", "127.0.0.1"),

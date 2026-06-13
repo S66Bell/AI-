@@ -121,6 +121,8 @@ class JarvisServer:
         c = self.config
         if c.is_local:
             backend = f"local · {c.active_model} (offline-capable)"
+        elif c.is_hf:
+            backend = f"Hugging Face · {c.active_model}"
         else:
             backend = f"Claude · {c.active_model} · effort: {c.effort}"
         return {

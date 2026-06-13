@@ -7,6 +7,7 @@ to also reach it from a phone on the same Wi-Fi.
 
 from __future__ import annotations
 
+import os
 import socket
 import threading
 import webbrowser
@@ -31,6 +32,17 @@ def main() -> None:
     import uvicorn
 
     config = Config.load()
+
+    # Fail fast with a clear message instead of a traceback when credentials
+    # for the chosen brain are missing (the assistant is built eagerly below).
+    if config.is_claude and not config.api_key:
+        print("No ANTHROPIC_API_KEY set. Add it, or use JARVIS_PROVIDER=ollama / hf.")
+        return
+    if config.is_hf and not config.hf_token:
+        print("No Hugging Face token set. Set HF_TOKEN (or JARVIS_HF_TOKEN) to use "
+              "JARVIS_PROVIDER=hf, or use JARVIS_PROVIDER=ollama.")
+        return
+
     app = create_app(config)
 
     port = config.web_port
@@ -46,8 +58,11 @@ def main() -> None:
                   "Set JARVIS_WEB_TOKEN before exposing it.")
     print("  Tip: in the browser you can install it as an app (Add to Home Screen).\n")
 
-    # Pop the browser open shortly after the server starts listening.
-    threading.Timer(1.0, lambda: webbrowser.open(local_url)).start()
+    # Pop the browser open shortly after the server starts listening — but only
+    # for a local run. When bound to all interfaces (LAN / a HF Space) there's
+    # usually no desktop browser to open, so we skip it.
+    if not exposed and os.environ.get("JARVIS_NO_BROWSER") != "1":
+        threading.Timer(1.0, lambda: webbrowser.open(local_url)).start()
 
     uvicorn.run(app, host=config.web_host, port=port, log_level="info")
 

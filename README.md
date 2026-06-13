@@ -92,6 +92,26 @@ If you want a more capable brain, set `JARVIS_PROVIDER=claude` and add your
 stays identical. On `claude-fable-5`, JARVIS automatically opts into a
 server-side fallback so a safety refusal is re-served rather than failing.
 
+## Run it on Hugging Face (no local GPU)
+
+Prefer the cloud? JARVIS can use a model **served by Hugging Face** as its
+brain, and the whole app can be **hosted on a Hugging Face Space** with an
+always-on URL you open from your phone:
+
+```bash
+export HF_TOKEN=hf_your_token
+JARVIS_PROVIDER=hf python serve.py
+```
+
+It calls HF's OpenAI-compatible router (default model
+`Qwen/Qwen2.5-7B-Instruct`), so no Ollama or GPU is needed. A `Dockerfile` is
+included for one-click Space hosting. Full walkthrough — brain-on-HF and
+app-on-Spaces, secrets, and persistent memory — is in **[DEPLOY_HF.md](DEPLOY_HF.md)**.
+
+> In the cloud, JARVIS's tools run in HF's sandbox, not on your computer — so a
+> Space is ideal for chat/research/writing, while running the app on your own PC
+> (optionally with the HF brain) is what lets it act on *your* machine.
+
 ## Configuration
 
 Everything is set via environment variables (or `.env`). See `.env.example` for
@@ -99,8 +119,10 @@ the full list. Highlights:
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `JARVIS_PROVIDER` | `ollama` | `ollama` (local, free) or `claude` (API, paid). |
+| `JARVIS_PROVIDER` | `ollama` | `ollama` (local, free), `hf` (Hugging Face), or `claude` (paid). |
 | `JARVIS_OLLAMA_MODEL` | `qwen2.5:7b` | Local model name (must be pulled in Ollama). |
+| `HF_TOKEN` | — | Hugging Face token (required when `JARVIS_PROVIDER=hf`). |
+| `JARVIS_HF_MODEL` | `Qwen/Qwen2.5-7B-Instruct` | Served model id for the `hf` provider. |
 | `JARVIS_OLLAMA_HOST` | `http://localhost:11434` | Where Ollama is listening. |
 | `ANTHROPIC_API_KEY` | — | Required only when `JARVIS_PROVIDER=claude`. |
 | `JARVIS_MODEL` | `claude-opus-4-8` | Claude model (when using Claude). |
@@ -194,6 +216,7 @@ jarvis/
   backends/
     base.py        the backend interface + agentic loop contract
     ollama.py      local LLM via Ollama  ← the independent, free brain
+    hf.py          Hugging Face Inference (cloud brain, no local GPU)
     claude.py      Claude API (optional)
   tools/           shell, files, system, memory, and (local) web tools
   voice/           optional speech-to-text / text-to-speech
