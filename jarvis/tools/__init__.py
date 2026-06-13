@@ -8,10 +8,13 @@ loop because Anthropic executes those — we don't run them here.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from ..config import Config
 from ..memory import Memory
+
+if TYPE_CHECKING:
+    from ..store import Store
 
 
 @dataclass
@@ -24,6 +27,8 @@ class ToolContext:
     confirm: Callable[[str], bool]
     # Emit a short status line to the user (e.g. "running: ls -la").
     notify: Callable[[str], None] = lambda _msg: None
+    # Structured persistence (reminders/follow-ups); may be None in minimal setups.
+    store: "Store | None" = None
 
 
 @dataclass
@@ -69,7 +74,7 @@ def build_registry(ctx_config: Config, *, include_web: bool = False) -> ToolRegi
     Claude backend uses Anthropic's server-side web tools instead, so it omits
     these; the local (Ollama) backend includes them.
     """
-    from . import filesystem, memory_tool, shell, system_info
+    from . import filesystem, memory_tool, reminders, shell, system_info
 
     registry = ToolRegistry()
     tools = [
@@ -77,6 +82,7 @@ def build_registry(ctx_config: Config, *, include_web: bool = False) -> ToolRegi
         *filesystem.get_tools(),
         *system_info.get_tools(),
         *memory_tool.get_tools(),
+        *reminders.get_tools(),
     ]
     if include_web:
         from . import web
