@@ -28,11 +28,17 @@ use the Claude API instead. The default is local and free.
 ## Quick start (free, local — recommended)
 
 **1. Install [Ollama](https://ollama.com/download)** (the local model runtime),
-then pull a model. For ~16GB RAM, `qwen2.5:7b` is a great tool-using model:
+then pull a model. The default is Google's **Gemma 3**, which runs comfortably
+on modest hardware:
 
 ```bash
-ollama pull qwen2.5:7b      # ~8GB RAM? use qwen2.5:3b or llama3.2:3b
+ollama pull gemma3:4b       # smaller: gemma3:1b · bigger: gemma3:12b / 27b
 ```
+
+> **Heads-up on tools:** Gemma has no tool-calling support in Ollama, so JARVIS
+> runs **chat-only** with it (no shell, file, or web actions — it'll say so once
+> per session). If you want JARVIS to *do* things, pull a tool-capable model and
+> set it via `JARVIS_OLLAMA_MODEL`, e.g. `ollama pull qwen2.5:7b`.
 
 **2. Install JARVIS and configure:**
 
@@ -58,15 +64,28 @@ That's it — a private AI assistant running on your own machine, for free.
 
 ### Choosing a local model
 
+Set your choice in `.env` via `JARVIS_OLLAMA_MODEL`.
+
+**Chat-only (default) — Gemma:** great conversation, no tools.
+
+| Your RAM | Gemma model | Pull command |
+| --- | --- | --- |
+| ≤ 4 GB | `gemma3:1b` | `ollama pull gemma3:1b` |
+| ~8 GB | `gemma3:4b` (default) | `ollama pull gemma3:4b` |
+| 16 GB+ | `gemma3:12b` / `gemma3:27b` | `ollama pull gemma3:12b` |
+
+**Full tool use — Qwen / Llama:** lets JARVIS run shell, edit files, search the
+web. Pick one of these if you want it to *act*, not just chat.
+
 | Your RAM | Suggested model | Pull command |
 | --- | --- | --- |
 | ≤ 8 GB | `qwen2.5:3b` / `llama3.2:3b` | `ollama pull qwen2.5:3b` |
 | ~16 GB | `qwen2.5:7b` / `llama3.1:8b` | `ollama pull qwen2.5:7b` |
 | 32 GB+ | `qwen2.5:14b` and up | `ollama pull qwen2.5:14b` |
 
-Set your choice in `.env` via `JARVIS_OLLAMA_MODEL`. Models that support tool
-calling (the Qwen2.5 and Llama 3.1/3.2 families) work best, since JARVIS relies
-on tools to get things done.
+JARVIS relies on tool calling to get things done, so the Qwen2.5 and Llama
+3.1/3.2 families unlock its full capabilities. With a model that can't call
+tools (like Gemma), JARVIS automatically falls back to chat-only and tells you.
 
 ## Using Claude instead (optional, paid)
 
