@@ -42,6 +42,11 @@ def make_backend(
 
         return OllamaBackend(**kwargs)
 
+    if config.is_hf:
+        from .hf import HFBackend
+
+        return HFBackend(**kwargs)
+
     from .claude import ClaudeBackend
 
     return ClaudeBackend(**kwargs)

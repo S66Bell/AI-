@@ -1,0 +1,4 @@
+# Web / PWA front-end for JARVIS: pip install -r requirements-web.txt
+# (the core CLI in requirements.txt does not need these)
+fastapi>=0.110.0
+uvicorn>=0.30.0

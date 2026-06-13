@@ -30,6 +30,10 @@ class OllamaBackend(Backend):
         super().__init__(*args, **kwargs)
         self.host = self.config.ollama_host.rstrip("/")
         self.model = self.config.ollama_model
+        # Some local models (e.g. Gemma) have no tool-calling template in Ollama.
+        # We start optimistic and flip this off the first time Ollama refuses
+        # tools, then continue in chat-only mode for the rest of the session.
+        self._tools_supported = True
         self._check_ready()
 
     # ── readiness ──────────────────────────────────────────────────────
@@ -73,16 +77,44 @@ class OllamaBackend(Backend):
             )
         return tools
 
+    @staticmethod
+    def _is_tools_unsupported(message: str) -> bool:
+        """Does this Ollama error mean the model can't do tool calling?"""
+        m = message.lower()
+        return "does not support tools" in m or ("support" in m and "tools" in m)
+
+    def _disable_tools(self) -> None:
+        """Drop tools for the rest of the session and tell the user once."""
+        if self._tools_supported:
+            self._tools_supported = False
+            self.notify(
+                f"{self.model} can't call tools in Ollama — continuing chat-only "
+                "(no shell/file/web actions). Use a tool-capable model like "
+                "qwen2.5 or llama3.1 if you need those."
+            )
+
+    @staticmethod
+    def _error_detail(resp: "requests.Response") -> str:
+        try:
+            data = resp.json()
+            if isinstance(data, dict) and data.get("error"):
+                return str(data["error"])
+        except ValueError:
+            pass
+        return resp.text or f"HTTP {resp.status_code}"
+
     # ── one streamed model call ────────────────────────────────────────
     def _call_model(self) -> dict:
         """Stream one assistant message; returns {'content', 'tool_calls'}."""
+        use_tools = self._tools_supported and bool(self.registry.api_definitions())
         payload = {
             "model": self.model,
             "messages": [{"role": "system", "content": self.system_fn()}] + self.messages,
-            "tools": self._tools(),
             "stream": True,
             "options": {"num_ctx": self.config.ollama_num_ctx},
         }
+        if use_tools:
+            payload["tools"] = self._tools()
         content_parts: list[str] = []
         tool_calls: list[dict] = []
 
@@ -90,9 +122,16 @@ class OllamaBackend(Backend):
             resp = requests.post(
                 f"{self.host}/api/chat", json=payload, stream=True, timeout=600
             )
-            resp.raise_for_status()
         except requests.RequestException as exc:
             raise OllamaError(f"Ollama request failed: {exc}") from exc
+
+        if resp.status_code >= 400:
+            detail = self._error_detail(resp)
+            # Model has no tool template: retry this call without tools.
+            if use_tools and self._is_tools_unsupported(detail):
+                self._disable_tools()
+                return self._call_model()
+            raise OllamaError(f"Ollama request failed ({resp.status_code}): {detail}")
 
         for line in resp.iter_lines():
             if not line:
@@ -102,7 +141,11 @@ class OllamaBackend(Backend):
             except json.JSONDecodeError:
                 continue
             if "error" in chunk:
-                raise OllamaError(chunk["error"])
+                err = str(chunk["error"])
+                if use_tools and self._is_tools_unsupported(err):
+                    self._disable_tools()
+                    return self._call_model()
+                raise OllamaError(err)
 
             msg = chunk.get("message") or {}
             if msg.get("thinking") and self.on_thinking is not None:

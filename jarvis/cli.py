@@ -126,6 +126,8 @@ class CLI:
         name = self.config.assistant_name
         if self.config.is_local:
             backend_desc = f"local · {self.config.active_model} (offline-capable)"
+        elif self.config.is_hf:
+            backend_desc = f"Hugging Face · {self.config.active_model}"
         else:
             backend_desc = f"Claude · {self.config.active_model} · effort: {self.config.effort}"
         title = Text(f"{name} online.", style="bold cyan")
@@ -195,10 +197,17 @@ class CLI:
 
     # ── main loop ──────────────────────────────────────────────────────
     def run(self) -> None:
-        if not self.config.is_local and not self.config.api_key:
+        if self.config.is_claude and not self.config.api_key:
             self.console.print(
                 "[red]No ANTHROPIC_API_KEY found.[/] "
                 "Copy .env.example to .env and add your key, "
+                "or set JARVIS_PROVIDER=ollama to run a free local model."
+            )
+            return
+        if self.config.is_hf and not self.config.hf_token:
+            self.console.print(
+                "[red]No Hugging Face token found.[/] "
+                "Set HF_TOKEN (or JARVIS_HF_TOKEN) to use JARVIS_PROVIDER=hf, "
                 "or set JARVIS_PROVIDER=ollama to run a free local model."
             )
             return

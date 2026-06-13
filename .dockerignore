@@ -1,0 +1,13 @@
+.git
+.gitignore
+.env
+.venv
+venv
+__pycache__
+**/__pycache__
+*.pyc
+.jarvis
+~/.jarvis
+.DS_Store
+requirements-voice.txt
+DEPLOY_HF.md

@@ -28,11 +28,16 @@ use the Claude API instead. The default is local and free.
 ## Quick start (free, local — recommended)
 
 **1. Install [Ollama](https://ollama.com/download)** (the local model runtime),
-then pull a model. For ~16GB RAM, `qwen2.5:7b` is a great tool-using model:
+then pull a model. The default is `qwen2.5:7b` — a strong **tool-using** model
+for ~16GB RAM, so JARVIS can actually run shell, files, and web for you:
 
 ```bash
 ollama pull qwen2.5:7b      # ~8GB RAM? use qwen2.5:3b or llama3.2:3b
 ```
+
+> Prefer a different brain? Any Ollama model works. Note that **Gemma** has no
+> tool-calling in Ollama, so JARVIS falls back to **chat-only** with it (no
+> shell/file/web actions) — fine for conversation, see the model table below.
 
 **2. Install JARVIS and configure:**
 
@@ -58,15 +63,27 @@ That's it — a private AI assistant running on your own machine, for free.
 
 ### Choosing a local model
 
+Set your choice in `.env` via `JARVIS_OLLAMA_MODEL`.
+
+**Full tool use (default) — Qwen / Llama:** lets JARVIS run shell, edit files,
+and search the web. JARVIS relies on tool calling to get things done, so these
+unlock its full capabilities.
+
 | Your RAM | Suggested model | Pull command |
 | --- | --- | --- |
 | ≤ 8 GB | `qwen2.5:3b` / `llama3.2:3b` | `ollama pull qwen2.5:3b` |
-| ~16 GB | `qwen2.5:7b` / `llama3.1:8b` | `ollama pull qwen2.5:7b` |
+| ~16 GB | `qwen2.5:7b` (default) / `llama3.1:8b` | `ollama pull qwen2.5:7b` |
 | 32 GB+ | `qwen2.5:14b` and up | `ollama pull qwen2.5:14b` |
 
-Set your choice in `.env` via `JARVIS_OLLAMA_MODEL`. Models that support tool
-calling (the Qwen2.5 and Llama 3.1/3.2 families) work best, since JARVIS relies
-on tools to get things done.
+**Chat-only — Gemma:** great conversation, but no tools (no shell/file/web).
+With a model that can't call tools, JARVIS automatically falls back to chat-only
+and tells you once.
+
+| Your RAM | Gemma model | Pull command |
+| --- | --- | --- |
+| ≤ 4 GB | `gemma3:1b` | `ollama pull gemma3:1b` |
+| ~8 GB | `gemma3:4b` | `ollama pull gemma3:4b` |
+| 16 GB+ | `gemma3:12b` / `gemma3:27b` | `ollama pull gemma3:12b` |
 
 ## Using Claude instead (optional, paid)
 
@@ -75,6 +92,26 @@ If you want a more capable brain, set `JARVIS_PROVIDER=claude` and add your
 stays identical. On `claude-fable-5`, JARVIS automatically opts into a
 server-side fallback so a safety refusal is re-served rather than failing.
 
+## Run it on Hugging Face (no local GPU)
+
+Prefer the cloud? JARVIS can use a model **served by Hugging Face** as its
+brain, and the whole app can be **hosted on a Hugging Face Space** with an
+always-on URL you open from your phone:
+
+```bash
+export HF_TOKEN=hf_your_token
+JARVIS_PROVIDER=hf python serve.py
+```
+
+It calls HF's OpenAI-compatible router (default model
+`Qwen/Qwen2.5-7B-Instruct`), so no Ollama or GPU is needed. A `Dockerfile` is
+included for one-click Space hosting. Full walkthrough — brain-on-HF and
+app-on-Spaces, secrets, and persistent memory — is in **[DEPLOY_HF.md](DEPLOY_HF.md)**.
+
+> In the cloud, JARVIS's tools run in HF's sandbox, not on your computer — so a
+> Space is ideal for chat/research/writing, while running the app on your own PC
+> (optionally with the HF brain) is what lets it act on *your* machine.
+
 ## Configuration
 
 Everything is set via environment variables (or `.env`). See `.env.example` for
@@ -82,8 +119,10 @@ the full list. Highlights:
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `JARVIS_PROVIDER` | `ollama` | `ollama` (local, free) or `claude` (API, paid). |
+| `JARVIS_PROVIDER` | `ollama` | `ollama` (local, free), `hf` (Hugging Face), or `claude` (paid). |
 | `JARVIS_OLLAMA_MODEL` | `qwen2.5:7b` | Local model name (must be pulled in Ollama). |
+| `HF_TOKEN` | — | Hugging Face token (required when `JARVIS_PROVIDER=hf`). |
+| `JARVIS_HF_MODEL` | `Qwen/Qwen2.5-7B-Instruct` | Served model id for the `hf` provider. |
 | `JARVIS_OLLAMA_HOST` | `http://localhost:11434` | Where Ollama is listening. |
 | `ANTHROPIC_API_KEY` | — | Required only when `JARVIS_PROVIDER=claude`. |
 | `JARVIS_MODEL` | `claude-opus-4-8` | Claude model (when using Claude). |
@@ -120,6 +159,52 @@ System audio libraries are needed:
 
 Then run with `JARVIS_VOICE=1` or toggle `/voice` mid-session.
 
+## Web app (runs on your PC)
+
+Prefer a chat window over the terminal? JARVIS ships with a small web app — the
+same assistant, persona, memory, and tools, in your browser.
+
+```bash
+pip install -r requirements-web.txt
+python serve.py
+```
+
+It starts a local server and **opens `http://localhost:8765` in your browser**
+automatically. The window:
+
+- Streams replies live and shows what JARVIS is doing.
+- Pops a **Proceed / Decline** dialog before any destructive action runs.
+- Has a `⋮` menu for reset, memory, reasoning toggle, clear-history, and settings.
+
+By default it binds to localhost, so it's only reachable from this PC. It's also
+an installable PWA — your browser can offer to install it as a desktop app.
+
+### Reaching it from your phone (optional)
+
+The same app works on a phone. Bind to your LAN and open the printed URL on the
+phone (same Wi-Fi), then **Add to Home Screen**:
+
+```bash
+JARVIS_WEB_HOST=0.0.0.0 python serve.py
+```
+
+To reach it away from home, put it behind a tunnel (e.g.
+[Tailscale](https://tailscale.com), `cloudflared`, or `ngrok`) and **set a
+token first**, then enter the same token in the app's **Settings**:
+
+```bash
+JARVIS_WEB_HOST=0.0.0.0 JARVIS_WEB_TOKEN=your-long-secret python serve.py
+```
+
+Without a token the API is open to anyone who can reach the host, so only run
+untokenised on a trusted, localhost-only or LAN setup.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `JARVIS_WEB_HOST` | `127.0.0.1` | Interface to bind. Use `0.0.0.0` to allow phones/LAN. |
+| `JARVIS_WEB_PORT` | `8765` | Port to serve the app on. |
+| `JARVIS_WEB_TOKEN` | — | If set, required to use the API (enter it in Settings). |
+
 ## How it's built
 
 ```
@@ -131,11 +216,21 @@ jarvis/
   backends/
     base.py        the backend interface + agentic loop contract
     ollama.py      local LLM via Ollama  ← the independent, free brain
+    hf.py          Hugging Face Inference (cloud brain, no local GPU)
     claude.py      Claude API (optional)
   tools/           shell, files, system, memory, and (local) web tools
   voice/           optional speech-to-text / text-to-speech
   cli.py           the interactive terminal interface
+  web/             FastAPI API + installable PWA (phone front-end)
+    server.py      wraps the same Assistant in a streaming HTTP API
+    static/        the Progressive Web App (HTML/CSS/JS, manifest, SW)
 ```
+
+Both front-ends — the terminal `cli.py` and the phone `web/` PWA — drive the
+**same** `Assistant` through the same four callbacks (stream text, status,
+reasoning, and confirm-before-destructive-action). The web layer just routes
+those over HTTP: events stream to the browser as newline-delimited JSON, and a
+confirmation is answered by a second request from the phone.
 
 The **backend** owns the conversation with the model and runs the agentic loop:
 stream the reply, let the model call tools, run them locally (gating destructive
@@ -168,5 +263,5 @@ This is a starting point, not a cage:
   Drop a module in `jarvis/tools/` and register it.
 - Tune the personality in `jarvis/persona.py`.
 - Try different local models in Ollama to trade speed for capability.
-- Swap the terminal UI for a web or mobile front-end — the `Assistant` and
-  backend classes are interface-agnostic.
+- Use it from your phone with the built-in PWA (`python serve.py`), or build
+  your own front-end — the `Assistant` and backend classes are interface-agnostic.

@@ -30,8 +30,8 @@ class Assistant:
         self.config = config
         self.memory = memory
 
-        # The local backend needs its own web tools; Claude uses server-side ones.
-        self.registry = build_registry(config, include_web=config.is_local)
+        # Local + HF backends run web tools themselves; Claude uses server-side ones.
+        self.registry = build_registry(config, include_web=config.uses_local_web_tools)
         self.tool_ctx = ToolContext(
             config=config, memory=memory, confirm=confirm, notify=notify
         )
