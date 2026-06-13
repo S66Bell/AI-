@@ -1,72 +1,98 @@
-# JARVIS — your own personal AI
+# JARVIS — your own independent AI
 
-A fully self-hosted, JARVIS-style AI assistant powered by Claude. It runs on
-your machine, under your control, with a persistent personality, long-term
-memory, real tools (shell, files, web), and optional voice — the closest thing
-to Tony Stark's JARVIS you can stand up in an afternoon.
+A fully self-hosted, JARVIS-style AI assistant. It runs a **free, local language
+model on your own machine** — no API keys, no usage fees, no calls to Claude or
+OpenAI — and once the model is downloaded it works **completely offline**. It
+has a persistent personality, long-term memory, real tools (shell, files, web),
+and optional voice.
 
-> "Sometimes you gotta run before you can walk." — and JARVIS is the one
-> running things for you.
+It's also pluggable: if you ever want a more powerful brain, flip one setting to
+use the Claude API instead. The default is local and free.
+
+> "Sometimes you gotta run before you can walk." — JARVIS does the running.
 
 ## What it can do
 
-- **Hold a real conversation** with a consistent persona that calls you by
-  name and remembers you across sessions.
-- **Actually do things**, not just talk about them, through tools:
-  - `run_shell` — run commands on your machine (with safety confirmation for
-    anything destructive)
+- **Hold a real conversation** with a consistent persona that calls you by name
+  and remembers you across sessions.
+- **Actually do things**, not just talk, through tools:
+  - `run_shell` — run commands on your machine (destructive ones are confirmed)
   - `read_file` / `write_file` / `list_directory` — work with your files
-  - `web_search` / `web_fetch` — live web access (Anthropic-hosted tools)
+  - `web_search` / `web_fetch` — look things up online (needs internet)
   - `remember` / `recall_memories` / `forget` — durable long-term memory
   - `get_datetime` / `get_system_info` — situational awareness
-- **Remember what matters.** Tell it "remember that I prefer dark roast" and it
-  will, permanently, across restarts.
-- **Talk, optionally.** Plug in voice for hands-free use.
-- **Think hard.** Adaptive reasoning, with a configurable effort level.
+- **Remember what matters**, permanently, across restarts.
+- **Run entirely on your hardware** with an open model — independent and private.
+- **Talk, optionally**, with voice in and out.
 
-## Quick start
+## Quick start (free, local — recommended)
+
+**1. Install [Ollama](https://ollama.com/download)** (the local model runtime),
+then pull a model. For ~16GB RAM, `qwen2.5:7b` is a great tool-using model:
 
 ```bash
-# 1. Install
-pip install -r requirements.txt
-
-# 2. Configure
-cp .env.example .env
-#    then edit .env and add your ANTHROPIC_API_KEY
-
-# 3. Run
-python run.py          # or:  python -m jarvis
+ollama pull qwen2.5:7b      # ~8GB RAM? use qwen2.5:3b or llama3.2:3b
 ```
 
-You'll drop into an interactive session:
+**2. Install JARVIS and configure:**
+
+```bash
+pip install -r requirements.txt
+cp .env.example .env        # defaults to the local Ollama model — no key needed
+```
+
+**3. Run:**
+
+```bash
+python run.py               # or:  python -m jarvis
+```
 
 ```
 You  what's running on port 8080?
 JARVIS  Let me take a look, Sir.
-· running: lsof -i :8080
+· using run_shell
 Nothing is listening on port 8080 at the moment.
 ```
 
+That's it — a private AI assistant running on your own machine, for free.
+
+### Choosing a local model
+
+| Your RAM | Suggested model | Pull command |
+| --- | --- | --- |
+| ≤ 8 GB | `qwen2.5:3b` / `llama3.2:3b` | `ollama pull qwen2.5:3b` |
+| ~16 GB | `qwen2.5:7b` / `llama3.1:8b` | `ollama pull qwen2.5:7b` |
+| 32 GB+ | `qwen2.5:14b` and up | `ollama pull qwen2.5:14b` |
+
+Set your choice in `.env` via `JARVIS_OLLAMA_MODEL`. Models that support tool
+calling (the Qwen2.5 and Llama 3.1/3.2 families) work best, since JARVIS relies
+on tools to get things done.
+
+## Using Claude instead (optional, paid)
+
+If you want a more capable brain, set `JARVIS_PROVIDER=claude` and add your
+`ANTHROPIC_API_KEY` in `.env`. Everything else — persona, memory, tools, UI —
+stays identical. On `claude-fable-5`, JARVIS automatically opts into a
+server-side fallback so a safety refusal is re-served rather than failing.
+
 ## Configuration
 
-Everything is set via environment variables (or `.env`). See `.env.example`
-for the full list. Highlights:
+Everything is set via environment variables (or `.env`). See `.env.example` for
+the full list. Highlights:
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `ANTHROPIC_API_KEY` | — | **Required.** Your Anthropic API key. |
-| `JARVIS_MODEL` | `claude-opus-4-8` | Which Claude model drives it. Use `claude-fable-5` for the most capable model, or `claude-sonnet-4-6` for speed. |
-| `JARVIS_EFFORT` | `high` | Reasoning depth: `low` → `max`. |
+| `JARVIS_PROVIDER` | `ollama` | `ollama` (local, free) or `claude` (API, paid). |
+| `JARVIS_OLLAMA_MODEL` | `qwen2.5:7b` | Local model name (must be pulled in Ollama). |
+| `JARVIS_OLLAMA_HOST` | `http://localhost:11434` | Where Ollama is listening. |
+| `ANTHROPIC_API_KEY` | — | Required only when `JARVIS_PROVIDER=claude`. |
+| `JARVIS_MODEL` | `claude-opus-4-8` | Claude model (when using Claude). |
 | `JARVIS_USER_NAME` | `Sir` | What it calls you. |
 | `JARVIS_NAME` | `JARVIS` | What you call it. |
 | `JARVIS_DATA_DIR` | `~/.jarvis` | Where memory + history live. |
 | `JARVIS_SHOW_THINKING` | `0` | Stream a summary of its reasoning. |
 | `JARVIS_CONFIRM_ALL_SHELL` | `0` | Confirm *every* shell command, not just risky ones. |
 | `JARVIS_VOICE` | `0` | Start in voice mode. |
-
-If you picked `claude-fable-5`, the assistant automatically opts into a
-server-side fallback to `claude-opus-4-8` so a safety refusal is re-served
-rather than failing the turn.
 
 ## In-session commands
 
@@ -87,7 +113,7 @@ rather than failing the turn.
 pip install -r requirements-voice.txt
 ```
 
-This needs system audio libraries:
+System audio libraries are needed:
 
 - **macOS:** `brew install portaudio`
 - **Debian/Ubuntu:** `sudo apt install portaudio19-dev espeak`
@@ -101,31 +127,46 @@ jarvis/
   config.py        environment-driven configuration
   persona.py       the JARVIS personality (system prompt)
   memory.py        conversation transcript + long-term facts (on disk)
-  assistant.py     the streaming, tool-using agent loop over Claude
-  cli.py           the interactive terminal interface
-  tools/           client-side tools (shell, files, system, memory)
+  assistant.py     provider-agnostic orchestrator (persona + memory + tools)
+  backends/
+    base.py        the backend interface + agentic loop contract
+    ollama.py      local LLM via Ollama  ← the independent, free brain
+    claude.py      Claude API (optional)
+  tools/           shell, files, system, memory, and (local) web tools
   voice/           optional speech-to-text / text-to-speech
+  cli.py           the interactive terminal interface
 ```
 
-The agent loop streams responses token-by-token, lets Claude call tools, runs
-them locally (gating destructive actions behind your confirmation), feeds the
-results back, and repeats until the task is done. Web search and fetch run on
-Anthropic's side; everything else runs on your machine.
+The **backend** owns the conversation with the model and runs the agentic loop:
+stream the reply, let the model call tools, run them locally (gating destructive
+actions behind your confirmation), feed the results back, and repeat until the
+task is done. The local Ollama backend and the Claude backend implement the same
+interface, so the persona, memory, tools, and UI are written once and work with
+either brain.
+
+## Why it's "independent"
+
+A frontier model like Claude or GPT can't be trained from scratch for free —
+that takes millions of dollars of compute. But you don't need to: JARVIS runs an
+**open-weight model** (Qwen, Llama, Mistral, …) locally via Ollama. The weights
+live on your disk, the conversation never leaves your machine, and after the
+one-time model download it needs no internet and no third-party service. That's
+a genuinely independent, private, zero-cost AI you fully own.
 
 ## Safety
 
 JARVIS runs with your authority on your machine, but it asks before doing
 anything destructive — deleting data, overwriting files, `sudo`, force-pushing,
-piping the internet into a shell, and so on. Set `JARVIS_CONFIRM_ALL_SHELL=1`
-to be asked before *any* command runs. Your API key lives only in `.env` (which
-is git-ignored), and memory/history stay on your disk.
+piping the internet into a shell, and so on. Set `JARVIS_CONFIRM_ALL_SHELL=1` to
+be asked before *any* command runs. Memory and history stay on your local disk.
 
 ## Make it yours
 
-This is a starting point, not a cage. A few natural next steps:
+This is a starting point, not a cage:
 
-- Add tools for the things *you* do: calendar, email, smart-home, your APIs.
-  Drop a new module in `jarvis/tools/` and register it.
+- Add tools for the things *you* do — calendar, email, smart-home, your APIs.
+  Drop a module in `jarvis/tools/` and register it.
 - Tune the personality in `jarvis/persona.py`.
-- Swap the terminal UI for a web or mobile front-end — the `Assistant` class is
-  interface-agnostic.
+- Try different local models in Ollama to trade speed for capability.
+- Swap the terminal UI for a web or mobile front-end — the `Assistant` and
+  backend classes are interface-agnostic.

@@ -62,16 +62,26 @@ class ToolRegistry:
             return f"{type(exc).__name__}: {exc}", True
 
 
-def build_registry(ctx_config: Config) -> ToolRegistry:
-    """Construct the default tool set."""
+def build_registry(ctx_config: Config, *, include_web: bool = False) -> ToolRegistry:
+    """Construct the default tool set.
+
+    When ``include_web`` is set, local web search/fetch tools are added. The
+    Claude backend uses Anthropic's server-side web tools instead, so it omits
+    these; the local (Ollama) backend includes them.
+    """
     from . import filesystem, memory_tool, shell, system_info
 
     registry = ToolRegistry()
-    for tool in (
+    tools = [
         *shell.get_tools(),
         *filesystem.get_tools(),
         *system_info.get_tools(),
         *memory_tool.get_tools(),
-    ):
+    ]
+    if include_web:
+        from . import web
+
+        tools.extend(web.get_tools())
+    for tool in tools:
         registry.register(tool)
     return registry

@@ -29,6 +29,8 @@ def _bool(name: str, default: bool) -> bool:
 class Config:
     """Resolved runtime configuration."""
 
+    # Which brain drives JARVIS: "ollama" (local, free, offline) or "claude".
+    provider: str
     api_key: str | None
     model: str
     effort: str
@@ -39,6 +41,19 @@ class Config:
     confirm_all_shell: bool
     voice: bool
     max_tokens: int
+    # Local-LLM (Ollama) settings.
+    ollama_host: str
+    ollama_model: str
+    ollama_num_ctx: int
+
+    @property
+    def is_local(self) -> bool:
+        return self.provider == "ollama"
+
+    @property
+    def active_model(self) -> str:
+        """The model name to show the user, whichever provider is active."""
+        return self.ollama_model if self.is_local else self.model
 
     @classmethod
     def load(cls) -> "Config":
@@ -48,6 +63,7 @@ class Config:
         data_dir.mkdir(parents=True, exist_ok=True)
 
         return cls(
+            provider=os.environ.get("JARVIS_PROVIDER", "ollama").strip().lower(),
             api_key=os.environ.get("ANTHROPIC_API_KEY"),
             model=os.environ.get("JARVIS_MODEL", "claude-opus-4-8"),
             effort=os.environ.get("JARVIS_EFFORT", "high"),
@@ -59,4 +75,7 @@ class Config:
             voice=_bool("JARVIS_VOICE", False),
             # Streaming is used throughout, so a generous ceiling is safe.
             max_tokens=int(os.environ.get("JARVIS_MAX_TOKENS", "16000")),
+            ollama_host=os.environ.get("JARVIS_OLLAMA_HOST", "http://localhost:11434"),
+            ollama_model=os.environ.get("JARVIS_OLLAMA_MODEL", "qwen2.5:7b"),
+            ollama_num_ctx=int(os.environ.get("JARVIS_OLLAMA_NUM_CTX", "8192")),
         )

@@ -67,17 +67,26 @@ class CLI:
         self.emitter = Emitter(self.console)
         self.show_thinking = config.show_thinking
         self.voice = None
+        # The backend (esp. Ollama readiness) is initialised lazily in run(),
+        # so connection problems surface as a friendly message, not a traceback.
+        self.assistant: Assistant | None = None
         if config.voice:
             self._enable_voice()
 
-        self.assistant = Assistant(
-            config,
-            self.memory,
-            emit=self.emitter.text,
-            confirm=self._confirm,
-            notify=self.emitter.status,
-            on_thinking=self._on_thinking if self.show_thinking else None,
-        )
+    def _build_assistant(self) -> bool:
+        try:
+            self.assistant = Assistant(
+                self.config,
+                self.memory,
+                emit=self.emitter.text,
+                confirm=self._confirm,
+                notify=self.emitter.status,
+                on_thinking=self._on_thinking if self.show_thinking else None,
+            )
+            return True
+        except Exception as exc:  # e.g. Ollama not running / model not pulled
+            self.console.print(f"[red]Couldn't start the model backend:[/]\n{exc}")
+            return False
 
     # ── confirmation / thinking callbacks ──────────────────────────────
     def _confirm(self, question: str) -> bool:
@@ -115,10 +124,14 @@ class CLI:
     # ── banner ─────────────────────────────────────────────────────────
     def _banner(self) -> None:
         name = self.config.assistant_name
+        if self.config.is_local:
+            backend_desc = f"local · {self.config.active_model} (offline-capable)"
+        else:
+            backend_desc = f"Claude · {self.config.active_model} · effort: {self.config.effort}"
         title = Text(f"{name} online.", style="bold cyan")
         subtitle = Text(
             f"Good to see you, {self.config.user_name}. "
-            f"Model: {self.config.model} · effort: {self.config.effort}\n"
+            f"Brain: {backend_desc}\n"
             f"Type /help for commands.",
             style="dim",
         )
@@ -182,11 +195,15 @@ class CLI:
 
     # ── main loop ──────────────────────────────────────────────────────
     def run(self) -> None:
-        if not self.config.api_key:
+        if not self.config.is_local and not self.config.api_key:
             self.console.print(
                 "[red]No ANTHROPIC_API_KEY found.[/] "
-                "Copy .env.example to .env and add your key."
+                "Copy .env.example to .env and add your key, "
+                "or set JARVIS_PROVIDER=ollama to run a free local model."
             )
+            return
+
+        if not self._build_assistant():
             return
 
         self._banner()
