@@ -120,42 +120,49 @@ System audio libraries are needed:
 
 Then run with `JARVIS_VOICE=1` or toggle `/voice` mid-session.
 
-## Use it from your phone (PWA)
+## Web app (runs on your PC)
 
-JARVIS ships with an installable web app, so you can talk to it from your phone
-while the brain — the model, your shell, your files — keeps running on your own
-machine. The phone is just the screen.
-
-**1. Install the web extras and start the server:**
+Prefer a chat window over the terminal? JARVIS ships with a small web app — the
+same assistant, persona, memory, and tools, in your browser.
 
 ```bash
 pip install -r requirements-web.txt
 python serve.py
 ```
 
-It prints a URL like `http://192.168.1.20:8765`.
+It starts a local server and **opens `http://localhost:8765` in your browser**
+automatically. The window:
 
-**2. On your phone (same Wi-Fi), open that URL** in the browser, then
-**Add to Home Screen**. It launches full-screen, like a native app:
+- Streams replies live and shows what JARVIS is doing.
+- Pops a **Proceed / Decline** dialog before any destructive action runs.
+- Has a `⋮` menu for reset, memory, reasoning toggle, clear-history, and settings.
 
-- Streams replies live, shows what JARVIS is doing, and pops a **Proceed /
-  Decline** dialog right on your phone before any destructive action runs.
-- The `⋮` menu has reset, memory, reasoning toggle, clear-history, and settings.
+By default it binds to localhost, so it's only reachable from this PC. It's also
+an installable PWA — your browser can offer to install it as a desktop app.
 
-**Reaching it when you're out:** the server binds to your LAN. To use it away
-from home, put it behind a tunnel (e.g. [Tailscale](https://tailscale.com),
-`cloudflared`, or `ngrok`) and **set a token first**:
+### Reaching it from your phone (optional)
+
+The same app works on a phone. Bind to your LAN and open the printed URL on the
+phone (same Wi-Fi), then **Add to Home Screen**:
 
 ```bash
-JARVIS_WEB_TOKEN=your-long-secret python serve.py
+JARVIS_WEB_HOST=0.0.0.0 python serve.py
 ```
 
-Then enter the same token in the app's **Settings**. Without a token the API is
-open to anyone who can reach the host, so only run untokenised on a trusted LAN.
+To reach it away from home, put it behind a tunnel (e.g.
+[Tailscale](https://tailscale.com), `cloudflared`, or `ngrok`) and **set a
+token first**, then enter the same token in the app's **Settings**:
+
+```bash
+JARVIS_WEB_HOST=0.0.0.0 JARVIS_WEB_TOKEN=your-long-secret python serve.py
+```
+
+Without a token the API is open to anyone who can reach the host, so only run
+untokenised on a trusted, localhost-only or LAN setup.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `JARVIS_WEB_HOST` | `0.0.0.0` | Interface to bind (LAN-reachable by default). |
+| `JARVIS_WEB_HOST` | `127.0.0.1` | Interface to bind. Use `0.0.0.0` to allow phones/LAN. |
 | `JARVIS_WEB_PORT` | `8765` | Port to serve the app on. |
 | `JARVIS_WEB_TOKEN` | — | If set, required to use the API (enter it in Settings). |
 

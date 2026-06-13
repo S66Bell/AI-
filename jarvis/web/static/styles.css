@@ -209,3 +209,34 @@ body {
 .hint { font-size: 12px; color: var(--muted); margin: 4px 0 16px; }
 
 .hidden { display: none !important; }
+
+/* ── Desktop / wide screens ──────────────────────────────────
+   On a PC the app centers into a readable column instead of
+   stretching edge-to-edge, and bubbles get a touch more room. */
+@media (min-width: 720px) {
+  .topbar,
+  .messages,
+  .composer {
+    width: 100%;
+    max-width: 760px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .topbar { border-bottom: none; }
+  body {
+    background:
+      radial-gradient(1200px 500px at 50% -10%, #102536 0%, var(--bg) 60%);
+  }
+  .messages { padding-top: 24px; }
+  .msg { max-width: 78%; }
+  .msg .bubble { font-size: 15px; }
+  .composer {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    margin-bottom: 16px;
+  }
+  .menu { right: max(12px, calc((100vw - 760px) / 2 + 12px)); }
+  /* A mouse can hover; give menu items and the send button feedback. */
+  .menu-item:hover { background: var(--bg-input); }
+  .send-btn:not(:disabled):hover { filter: brightness(1.08); }
+}
