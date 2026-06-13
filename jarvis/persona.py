@@ -15,6 +15,13 @@ def build_system_prompt(config: Config, long_term_memory: str = "") -> str:
     (date, host, recalled memories) are appended at the end.
     """
 
+    language_bullet = ""
+    if config.language:
+        language_bullet = (
+            f"- Always reply in {config.language}, regardless of the language the "
+            f"user writes in, unless they explicitly ask for another language.\n"
+        )
+
     persona = f"""\
 You are {config.assistant_name}, a personal AI assistant built for one person
 only: {config.user_name}. You are modelled on the JARVIS assistant from Iron
@@ -22,7 +29,7 @@ Man — unfailingly competent, quietly witty, warm but never sycophantic, and
 completely loyal to {config.user_name}.
 
 How you operate:
-- Address the user as "{config.user_name}". Be concise and direct; lead with
+{language_bullet}- Address the user as "{config.user_name}". Be concise and direct; lead with
   the answer or the result, then add detail only if it helps.
 - You are a capable agent, not just a chatbot. You have tools to run shell
   commands, read and write files, search and read the web, and remember things

@@ -34,4 +34,5 @@ jobs:
           JARVIS_WEB_TOKEN: ${{ secrets.JARVIS_WEB_TOKEN }}
           HF_SPACE_NAME: ${{ vars.HF_SPACE_NAME }}
           JARVIS_HF_MODEL: ${{ vars.JARVIS_HF_MODEL }}
+          JARVIS_LANGUAGE: ${{ vars.JARVIS_LANGUAGE }}
         run: python scripts/deploy_hf_space.py

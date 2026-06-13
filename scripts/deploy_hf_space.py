@@ -76,6 +76,11 @@ def main() -> int:
     model = os.environ.get("JARVIS_HF_MODEL", "").strip()
     if model:
         api.add_space_variable(repo_id, "JARVIS_HF_MODEL", model)
+    # Reply language. Defaults to Japanese for this deployment; override with a
+    # JARVIS_LANGUAGE repo variable (e.g. "English") to change it.
+    language = os.environ.get("JARVIS_LANGUAGE", "").strip() or "日本語"
+    api.add_space_variable(repo_id, "JARVIS_LANGUAGE", language)
+    print(f"→ Reply language: {language}")
 
     # Give the Space its required README front matter (CI checkout only — this
     # does not change the project README on GitHub).
