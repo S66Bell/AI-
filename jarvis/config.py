@@ -80,7 +80,7 @@ class Config:
             # Streaming is used throughout, so a generous ceiling is safe.
             max_tokens=int(os.environ.get("JARVIS_MAX_TOKENS", "16000")),
             ollama_host=os.environ.get("JARVIS_OLLAMA_HOST", "http://localhost:11434"),
-            ollama_model=os.environ.get("JARVIS_OLLAMA_MODEL", "gemma3:4b"),
+            ollama_model=os.environ.get("JARVIS_OLLAMA_MODEL", "qwen2.5:7b"),
             ollama_num_ctx=int(os.environ.get("JARVIS_OLLAMA_NUM_CTX", "8192")),
             # Bind to localhost by default — it's a PC-local app. To reach it
             # from a phone on the same Wi-Fi, set JARVIS_WEB_HOST=0.0.0.0.

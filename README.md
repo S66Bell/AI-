@@ -28,17 +28,16 @@ use the Claude API instead. The default is local and free.
 ## Quick start (free, local — recommended)
 
 **1. Install [Ollama](https://ollama.com/download)** (the local model runtime),
-then pull a model. The default is Google's **Gemma 3**, which runs comfortably
-on modest hardware:
+then pull a model. The default is `qwen2.5:7b` — a strong **tool-using** model
+for ~16GB RAM, so JARVIS can actually run shell, files, and web for you:
 
 ```bash
-ollama pull gemma3:4b       # smaller: gemma3:1b · bigger: gemma3:12b / 27b
+ollama pull qwen2.5:7b      # ~8GB RAM? use qwen2.5:3b or llama3.2:3b
 ```
 
-> **Heads-up on tools:** Gemma has no tool-calling support in Ollama, so JARVIS
-> runs **chat-only** with it (no shell, file, or web actions — it'll say so once
-> per session). If you want JARVIS to *do* things, pull a tool-capable model and
-> set it via `JARVIS_OLLAMA_MODEL`, e.g. `ollama pull qwen2.5:7b`.
+> Prefer a different brain? Any Ollama model works. Note that **Gemma** has no
+> tool-calling in Ollama, so JARVIS falls back to **chat-only** with it (no
+> shell/file/web actions) — fine for conversation, see the model table below.
 
 **2. Install JARVIS and configure:**
 
@@ -66,26 +65,25 @@ That's it — a private AI assistant running on your own machine, for free.
 
 Set your choice in `.env` via `JARVIS_OLLAMA_MODEL`.
 
-**Chat-only (default) — Gemma:** great conversation, no tools.
-
-| Your RAM | Gemma model | Pull command |
-| --- | --- | --- |
-| ≤ 4 GB | `gemma3:1b` | `ollama pull gemma3:1b` |
-| ~8 GB | `gemma3:4b` (default) | `ollama pull gemma3:4b` |
-| 16 GB+ | `gemma3:12b` / `gemma3:27b` | `ollama pull gemma3:12b` |
-
-**Full tool use — Qwen / Llama:** lets JARVIS run shell, edit files, search the
-web. Pick one of these if you want it to *act*, not just chat.
+**Full tool use (default) — Qwen / Llama:** lets JARVIS run shell, edit files,
+and search the web. JARVIS relies on tool calling to get things done, so these
+unlock its full capabilities.
 
 | Your RAM | Suggested model | Pull command |
 | --- | --- | --- |
 | ≤ 8 GB | `qwen2.5:3b` / `llama3.2:3b` | `ollama pull qwen2.5:3b` |
-| ~16 GB | `qwen2.5:7b` / `llama3.1:8b` | `ollama pull qwen2.5:7b` |
+| ~16 GB | `qwen2.5:7b` (default) / `llama3.1:8b` | `ollama pull qwen2.5:7b` |
 | 32 GB+ | `qwen2.5:14b` and up | `ollama pull qwen2.5:14b` |
 
-JARVIS relies on tool calling to get things done, so the Qwen2.5 and Llama
-3.1/3.2 families unlock its full capabilities. With a model that can't call
-tools (like Gemma), JARVIS automatically falls back to chat-only and tells you.
+**Chat-only — Gemma:** great conversation, but no tools (no shell/file/web).
+With a model that can't call tools, JARVIS automatically falls back to chat-only
+and tells you once.
+
+| Your RAM | Gemma model | Pull command |
+| --- | --- | --- |
+| ≤ 4 GB | `gemma3:1b` | `ollama pull gemma3:1b` |
+| ~8 GB | `gemma3:4b` | `ollama pull gemma3:4b` |
+| 16 GB+ | `gemma3:12b` / `gemma3:27b` | `ollama pull gemma3:12b` |
 
 ## Using Claude instead (optional, paid)
 
