@@ -105,3 +105,27 @@ class Memory:
         if self.history_path.exists():
             self.history_path.unlink()
         return "Conversation history cleared."
+
+    def transcript(self, limit: int = 100) -> list[dict]:
+        """Return the last `limit` visible turns for display in the UI, each as
+        {role, text, ts}. Unlike recent_messages (which feeds the model and so
+        must start on a user turn), this keeps everything for the user to read."""
+        if not self.history_path.exists():
+            return []
+        rows: list[dict] = []
+        try:
+            with self.history_path.open(encoding="utf-8") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if line:
+                        rows.append(json.loads(line))
+        except (json.JSONDecodeError, OSError):
+            return []
+
+        out: list[dict] = []
+        for row in rows[-limit:]:
+            role = row.get("role")
+            text = row.get("text", "")
+            if role in ("user", "assistant") and text:
+                out.append({"role": role, "text": text, "ts": row.get("ts", "")})
+        return out

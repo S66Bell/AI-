@@ -219,6 +219,11 @@ def create_app(config: Config) -> FastAPI:
         _check_token(x_jarvis_token)
         return {"facts": server.memory.load_facts()}
 
+    @app.get("/api/history")
+    def api_history(x_jarvis_token: str | None = Header(default=None)):
+        _check_token(x_jarvis_token)
+        return {"messages": server.memory.transcript()}
+
     @app.post("/api/forget")
     async def api_forget(
         request: Request, x_jarvis_token: str | None = Header(default=None)
