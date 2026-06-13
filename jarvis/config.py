@@ -36,6 +36,8 @@ class Config:
     effort: str
     user_name: str
     assistant_name: str
+    # If set, JARVIS always replies in this language (e.g. "日本語", "English").
+    language: str | None
     data_dir: Path
     show_thinking: bool
     confirm_all_shell: bool
@@ -95,6 +97,7 @@ class Config:
             effort=os.environ.get("JARVIS_EFFORT", "high"),
             user_name=os.environ.get("JARVIS_USER_NAME", "Sir"),
             assistant_name=os.environ.get("JARVIS_NAME", "JARVIS"),
+            language=(os.environ.get("JARVIS_LANGUAGE") or None),
             data_dir=data_dir,
             show_thinking=_bool("JARVIS_SHOW_THINKING", False),
             confirm_all_shell=_bool("JARVIS_CONFIRM_ALL_SHELL", False),
