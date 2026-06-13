@@ -1,0 +1,29 @@
+[project]
+name = "jarvis-assistant"
+version = "0.1.0"
+description = "A fully personal, JARVIS-style AI assistant powered by Claude"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "anthropic>=0.69.0",
+    "python-dotenv>=1.0.0",
+    "rich>=13.7.0",
+    "prompt_toolkit>=3.0.43",
+]
+
+[project.optional-dependencies]
+voice = [
+    "SpeechRecognition>=3.10.0",
+    "pyttsx3>=2.90",
+    "PyAudio>=0.2.13",
+]
+
+[project.scripts]
+jarvis = "jarvis.__main__:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["jarvis", "jarvis.tools", "jarvis.voice"]

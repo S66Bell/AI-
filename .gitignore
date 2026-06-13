@@ -1,0 +1,21 @@
+# Secrets & local config
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# JARVIS local data (in case someone points JARVIS_DATA_DIR here)
+.jarvis/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

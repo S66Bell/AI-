@@ -1,0 +1,12 @@
+# Optional voice I/O dependencies for JARVIS.
+# Install with: pip install -r requirements-voice.txt
+#
+# Notes:
+#  - SpeechRecognition needs PyAudio for microphone input, which needs
+#    PortAudio system libraries (e.g. `apt install portaudio19-dev` or
+#    `brew install portaudio`).
+#  - pyttsx3 uses your OS's native TTS engine (NSSpeechSynthesizer on macOS,
+#    SAPI5 on Windows, espeak on Linux — `apt install espeak`).
+SpeechRecognition>=3.10.0
+pyttsx3>=2.90
+PyAudio>=0.2.13

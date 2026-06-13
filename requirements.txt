@@ -1,0 +1,7 @@
+anthropic>=0.69.0
+python-dotenv>=1.0.0
+rich>=13.7.0
+prompt_toolkit>=3.0.43
+
+# Optional voice support (install with: pip install -r requirements-voice.txt)
+# See requirements-voice.txt
