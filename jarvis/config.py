@@ -7,6 +7,7 @@ so the assistant stays a single, portable process you fully control.
 from __future__ import annotations
 
 import os
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -16,6 +17,33 @@ try:
     load_dotenv()
 except ImportError:  # python-dotenv is optional at runtime
     pass
+
+
+def _resolve_data_dir() -> Path:
+    """Pick a writable directory for memory/history/db.
+
+    Honours JARVIS_DATA_DIR, but if that can't be created (a common Space
+    mistake: pointing at /data without enabling persistent storage), fall back
+    to a writable location so JARVIS still starts instead of crashing."""
+    candidates: list[Path] = []
+    env = os.environ.get("JARVIS_DATA_DIR")
+    if env:
+        candidates.append(Path(env).expanduser())
+    candidates.append(Path.home() / ".jarvis")
+    candidates.append(Path(tempfile.gettempdir()) / "jarvis")
+
+    for path in candidates:
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+            # Confirm we can actually write here.
+            probe = path / ".write_test"
+            probe.touch()
+            probe.unlink()
+            return path
+        except OSError:
+            continue
+    # Last resort: the temp dir itself is essentially always writable.
+    return Path(tempfile.gettempdir())
 
 
 def _bool(name: str, default: bool) -> bool:
@@ -85,10 +113,7 @@ class Config:
 
     @classmethod
     def load(cls) -> "Config":
-        data_dir = Path(
-            os.environ.get("JARVIS_DATA_DIR", "~/.jarvis")
-        ).expanduser()
-        data_dir.mkdir(parents=True, exist_ok=True)
+        data_dir = _resolve_data_dir()
 
         return cls(
             provider=os.environ.get("JARVIS_PROVIDER", "ollama").strip().lower(),
