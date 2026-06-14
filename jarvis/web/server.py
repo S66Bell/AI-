@@ -27,6 +27,7 @@ from fastapi.staticfiles import StaticFiles
 from ..assistant import Assistant
 from ..config import Config
 from ..memory import Memory
+from ..persistence import HFDatasetPersistence
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -102,6 +103,11 @@ class JarvisServer:
 
     def __init__(self, config: Config) -> None:
         self.config = config
+        # Free persistence: restore the snapshot before opening the database so
+        # Memory/Store pick up the previous session's data.
+        self.persistence = HFDatasetPersistence.from_config(config)
+        if self.persistence is not None:
+            self.persistence.restore()
         self.memory = Memory(config.data_dir)
         self.show_thinking = config.show_thinking
         self._turn_lock = threading.Lock()
@@ -164,9 +170,16 @@ class JarvisServer:
             thread.join(timeout=1.0)
             self._current = _NullChannel()
             self._turn_lock.release()
+            self._save()  # persist the turn (and any memory/reminder changes)
 
     def resolve_confirm(self, cid: str, approved: bool) -> bool:
         return self._current.resolve_confirm(cid, approved)
+
+    def _save(self) -> None:
+        """Persist changed data to the HF Dataset snapshot (debounced, no-op if
+        persistence isn't configured)."""
+        if self.persistence is not None:
+            self.persistence.request_save()
 
     # ── conversation threads ───────────────────────────────────────────
     # Mutations take the turn lock so a thread can't change mid-reply.
@@ -180,7 +193,8 @@ class JarvisServer:
         with self._turn_lock:
             tid = self.memory.new_thread()
             self.assistant.load_context()
-            return tid
+        self._save()
+        return tid
 
     def switch_thread(self, thread_id: int):
         with self._turn_lock:
@@ -193,10 +207,13 @@ class JarvisServer:
         with self._turn_lock:
             self.memory.delete_thread(thread_id)
             self.assistant.load_context()
-            return self.memory.thread_id
+            current = self.memory.thread_id
+        self._save()
+        return current
 
     def rename_thread(self, thread_id: int, title: str) -> None:
         self.memory.rename_thread(thread_id, title)
+        self._save()
 
     def search(self, query: str) -> list[dict]:
         return self.memory.search(query)
@@ -317,14 +334,22 @@ def create_app(config: Config) -> FastAPI:
         text = (body.get("text") or "").strip()
         if not text:
             raise HTTPException(status_code=400, detail="Nothing to forget.")
-        return {"message": server.memory.forget(text)}
+        msg = server.memory.forget(text)
+        server._save()
+        return {"message": msg}
 
     @app.post("/api/clear-history")
     def api_clear_history(x_jarvis_token: str | None = Header(default=None)):
         _check_token(x_jarvis_token)
         msg = server.memory.clear_history()
         server.assistant.reset()
+        server._save()
         return {"message": msg}
+
+    @app.on_event("shutdown")
+    def _persist_on_shutdown() -> None:
+        if server.persistence is not None:
+            server.persistence.flush_now()
 
     @app.post("/api/thinking")
     def api_thinking(x_jarvis_token: str | None = Header(default=None)):

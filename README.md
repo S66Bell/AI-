@@ -112,6 +112,28 @@ app-on-Spaces, secrets, and persistent memory — is in **[DEPLOY_HF.md](DEPLOY_
 > Space is ideal for chat/research/writing, while running the app on your own PC
 > (optionally with the HF brain) is what lets it act on *your* machine.
 
+### Free persistence (keep conversations across restarts)
+
+A free Space has **no persistent disk** — its filesystem is wiped on every
+restart, so conversations, threads, and long-term memory would be lost. To keep
+them for free, JARVIS can snapshot its data to a **private HF Dataset** and
+restore it on boot:
+
+1. Create a **write** token at <https://huggingface.co/settings/tokens>.
+2. Pick a dataset repo id you own, e.g. `your-name/jarvis-data` (it's created
+   automatically and set private on first save — no need to make it yourself).
+3. Add these as **Space secrets**:
+
+   | Secret | Value |
+   | --- | --- |
+   | `HF_TOKEN` | your **write** token (also used for inference) |
+   | `JARVIS_HF_DATASET` | `your-name/jarvis-data` |
+
+That's it. On boot JARVIS restores the latest snapshot; after each turn (and on
+shutdown) it saves back, debounced into at most one commit every few seconds.
+Locally you can use the same vars to back up `~/.jarvis` to the Hub. If
+`JARVIS_HF_DATASET` is unset, persistence is simply off and nothing changes.
+
 ## Configuration
 
 Everything is set via environment variables (or `.env`). See `.env.example` for
@@ -129,6 +151,7 @@ the full list. Highlights:
 | `JARVIS_USER_NAME` | `Sir` | What it calls you. |
 | `JARVIS_NAME` | `JARVIS` | What you call it. |
 | `JARVIS_DATA_DIR` | `~/.jarvis` | Where memory + history live. |
+| `JARVIS_HF_DATASET` | — | Private HF Dataset repo id for free persistence (see below). |
 | `JARVIS_SHOW_THINKING` | `0` | Stream a summary of its reasoning. |
 | `JARVIS_CONFIRM_ALL_SHELL` | `0` | Confirm *every* shell command, not just risky ones. |
 | `JARVIS_VOICE` | `0` | Start in voice mode. |

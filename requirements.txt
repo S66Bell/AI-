@@ -3,5 +3,8 @@ python-dotenv>=1.0.0
 rich>=13.7.0
 prompt_toolkit>=3.0.43
 requests>=2.31.0
+# Free persistence: snapshot conversations/memory to a private HF Dataset so a
+# Hugging Face Space survives restarts without a paid disk (set JARVIS_HF_DATASET).
+huggingface_hub>=0.23.0
 
 # Optional voice support: pip install -r requirements-voice.txt
