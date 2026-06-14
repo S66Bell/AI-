@@ -9,7 +9,9 @@ from __future__ import annotations
 import os
 import tempfile
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 try:
     from dotenv import load_dotenv
@@ -66,6 +68,9 @@ class Config:
     assistant_name: str
     # If set, JARVIS always replies in this language (e.g. "日本語", "English").
     language: str | None
+    # IANA timezone (e.g. "Asia/Tokyo") for all clocks the assistant shows. When
+    # unset or unknown we fall back to the host's local time.
+    timezone: str | None
     data_dir: Path
     show_thinking: bool
     confirm_all_shell: bool
@@ -91,6 +96,24 @@ class Config:
     # Proactive opening message on app open (time-of-day greeting + due
     # reminders). Templated, display-only; off means a silent app.
     greeting: bool
+
+    @property
+    def tz(self) -> ZoneInfo | None:
+        """The configured timezone, or None to use the host's local time. An
+        unknown/unavailable zone degrades to local rather than crashing."""
+        if not self.timezone:
+            return None
+        try:
+            return ZoneInfo(self.timezone)
+        except (ZoneInfoNotFoundError, ValueError, OSError):
+            return None
+
+    def now(self) -> datetime:
+        """The current time as a timezone-aware datetime, in `tz` if set,
+        otherwise the host's local time. Use this everywhere the assistant
+        reports the time so a Space running in UTC still shows the user's clock."""
+        tz = self.tz
+        return datetime.now(tz) if tz else datetime.now().astimezone()
 
     @property
     def is_local(self) -> bool:
@@ -150,9 +173,10 @@ class Config:
             api_key=os.environ.get("ANTHROPIC_API_KEY"),
             model=os.environ.get("JARVIS_MODEL", "claude-opus-4-8"),
             effort=os.environ.get("JARVIS_EFFORT", "high"),
-            user_name=os.environ.get("JARVIS_USER_NAME", "Sir"),
+            user_name=os.environ.get("JARVIS_USER_NAME", "Yukiさん"),
             assistant_name=os.environ.get("JARVIS_NAME", "Mira"),
             language=(os.environ.get("JARVIS_LANGUAGE") or None),
+            timezone=(os.environ.get("JARVIS_TIMEZONE") or "Asia/Tokyo"),
             data_dir=data_dir,
             show_thinking=_bool("JARVIS_SHOW_THINKING", False),
             confirm_all_shell=_bool("JARVIS_CONFIRM_ALL_SHELL", False),

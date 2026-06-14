@@ -26,7 +26,7 @@ def build_greeting(
     dicts / `sqlite3.Row`, read via `r["text"]` / `r["due_at"]`.
     """
 
-    now = now or datetime.now()
+    now = now or config.now()
     hour = now.hour
     japanese = _is_japanese(config)
     user = config.user_name
@@ -121,7 +121,7 @@ Personality:
     context = f"""
 
 ── Current context ──
-Date and time: {datetime.now().strftime('%A, %d %B %Y, %H:%M')}
+Date and time: {config.now().strftime('%A, %d %B %Y, %H:%M %Z')}
 Host system: {platform.system()} {platform.release()} ({platform.machine()})
 """
 
