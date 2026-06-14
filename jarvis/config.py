@@ -93,6 +93,12 @@ class Config:
     # string or a path to the key file. Empty disables all calendar features.
     gcal_credentials: str | None
     gcal_id: str
+    # Web Push (VAPID) for proactive briefings. Push is silently off unless BOTH
+    # keys are set (and pywebpush is installed) — degradable like calendar /
+    # persistence. Generate a keypair with scripts/gen_vapid.py.
+    vapid_public_key: str | None
+    vapid_private_key: str | None
+    vapid_subject: str
     # Web / PWA front-end settings.
     web_host: str
     web_port: int
@@ -216,6 +222,13 @@ class Config:
             # and the calendar id to read/write. Empty key disables calendar.
             gcal_credentials=(os.environ.get("JARVIS_GCAL_CREDENTIALS") or None),
             gcal_id=os.environ.get("JARVIS_GCAL_ID", "primary"),
+            # Web Push: a VAPID keypair gates proactive briefings. Push stays
+            # silently off unless BOTH the public and private keys are present.
+            vapid_public_key=(os.environ.get("JARVIS_VAPID_PUBLIC_KEY") or None),
+            vapid_private_key=(os.environ.get("JARVIS_VAPID_PRIVATE_KEY") or None),
+            vapid_subject=os.environ.get(
+                "JARVIS_VAPID_SUBJECT", "mailto:yuuki.s66@gmail.com"
+            ),
             # Bind to localhost by default — it's a PC-local app. To reach it
             # from a phone on the same Wi-Fi, set JARVIS_WEB_HOST=0.0.0.0.
             web_host=os.environ.get("JARVIS_WEB_HOST", "127.0.0.1"),

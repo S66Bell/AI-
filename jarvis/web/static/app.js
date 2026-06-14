@@ -268,9 +268,66 @@ async function handleMenu(action) {
       addStatus(data.message || "history cleared");
       break;
     }
+    case "notifications":
+      enableNotifications();
+      break;
     case "settings":
       openSettings();
       break;
+  }
+}
+
+// ── Web Push: enable proactive briefings ────────────────────────────────
+// Convert a URL-safe base64 VAPID public key into the Uint8Array the Push API
+// wants as its applicationServerKey.
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
+// Ask for notification permission, then subscribe this device with the server's
+// VAPID key. Silent/no-op when push isn't supported or configured — like the
+// rest of the app, the feature just stays off.
+async function enableNotifications() {
+  if (
+    !("serviceWorker" in navigator) ||
+    !("PushManager" in window) ||
+    !("Notification" in window)
+  ) {
+    addStatus(
+      "通知はこの端末では未対応です（iOSはホーム画面に追加したアプリで有効化してください）"
+    );
+    return;
+  }
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") {
+      addStatus("通知が許可されませんでした");
+      return;
+    }
+    const keyRes = await fetch("/api/push/key", { headers: authHeaders() });
+    const data = await keyRes.json().catch(() => ({}));
+    if (!data.enabled || !data.key) {
+      addStatus("サーバーでプッシュが未設定です");
+      return;
+    }
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(data.key),
+    });
+    await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify(sub),
+    });
+    addStatus("通知をオンにしました");
+  } catch (e) {
+    addStatus("通知の設定に失敗しました");
   }
 }
 
