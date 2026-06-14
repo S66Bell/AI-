@@ -180,6 +180,14 @@ body {
   color: #fff;
   animation: micpulse 1.2s ease-in-out infinite;
 }
+/* Hands-free mode active but mic currently paused (thinking/speaking). */
+.mic-btn.handsfree {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.mic-btn.handsfree.listening {
+  color: #fff;
+}
 @keyframes micpulse {
   50% { box-shadow: 0 0 0 6px rgba(255, 107, 107, 0.25); }
 }
