@@ -6,7 +6,7 @@
       <stop offset="100%" stop-color="#1d6f8f"/>
     </radialGradient>
   </defs>
-  <rect width="512" height="512" rx="112" fill="#0b1622"/>
+  <rect width="512" height="512" rx="112" fill="#05080f"/>
   <circle cx="256" cy="256" r="150" fill="none" stroke="#1d6f8f" stroke-width="10" opacity="0.7"/>
   <circle cx="256" cy="256" r="120" fill="none" stroke="#38c6ff" stroke-width="6" opacity="0.5"/>
   <g stroke="#38c6ff" stroke-width="14" stroke-linecap="round" opacity="0.85">
@@ -16,6 +16,6 @@
     <line x1="352" y1="256" x2="392" y2="256"/>
   </g>
   <circle cx="256" cy="256" r="88" fill="url(#core)"/>
-  <text x="256" y="300" font-family="Helvetica, Arial, sans-serif" font-size="120"
-        font-weight="700" fill="#04141d" text-anchor="middle">J</text>
+  <text x="256" y="298" font-family="Helvetica, Arial, sans-serif" font-size="116"
+        font-weight="700" fill="#04141d" text-anchor="middle">M</text>
 </svg>
