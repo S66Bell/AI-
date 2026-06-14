@@ -176,8 +176,10 @@ automatically. The window:
 - Pops a **Proceed / Decline** dialog before any destructive action runs.
 - **Voice, in the browser:** tap 🎤 to talk (speech-to-text) and toggle
   read-aloud (text-to-speech) from the `⋮` menu — using the device's own Web
-  Speech engine, so it works on the phone with nothing to install. (Mic input
-  needs a browser that supports it, e.g. Chrome/Android; read-aloud is broader.)
+  Speech engine, so it works on the phone with nothing to install. There's also
+  a **hands-free conversation** mode (`⋮` menu) that keeps the mic on and is
+  remembered across sessions. (Mic input needs a browser that supports it, e.g.
+  Chrome/Android; read-aloud is broader.)
 - Has a `⋮` menu for read-aloud, reset, memory, reasoning toggle, clear-history,
   and settings.
 
