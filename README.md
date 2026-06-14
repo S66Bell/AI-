@@ -174,7 +174,12 @@ automatically. The window:
 
 - Streams replies live and shows what JARVIS is doing.
 - Pops a **Proceed / Decline** dialog before any destructive action runs.
-- Has a `⋮` menu for reset, memory, reasoning toggle, clear-history, and settings.
+- **Voice, in the browser:** tap 🎤 to talk (speech-to-text) and toggle
+  read-aloud (text-to-speech) from the `⋮` menu — using the device's own Web
+  Speech engine, so it works on the phone with nothing to install. (Mic input
+  needs a browser that supports it, e.g. Chrome/Android; read-aloud is broader.)
+- Has a `⋮` menu for read-aloud, reset, memory, reasoning toggle, clear-history,
+  and settings.
 
 By default it binds to localhost, so it's only reachable from this PC. It's also
 an installable PWA — your browser can offer to install it as a desktop app.

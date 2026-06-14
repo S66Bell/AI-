@@ -29,6 +29,7 @@
   <main id="messages" class="messages" aria-live="polite"></main>
 
   <form id="composer" class="composer" autocomplete="off">
+    <button id="mic" class="mic-btn hidden" type="button" aria-label="音声入力">🎤</button>
     <textarea id="input" class="input" rows="1" placeholder="Message JARVIS…"
       enterkeyhint="send"></textarea>
     <button id="send" class="send-btn" type="submit" aria-label="Send">↑</button>
@@ -36,6 +37,7 @@
 
   <!-- Slide-down menu -->
   <div id="menu" class="menu hidden" role="menu">
+    <button class="menu-item" data-action="speak" role="menuitem">音声読み上げ: オフ</button>
     <button class="menu-item" data-action="reset" role="menuitem">Reset conversation</button>
     <button class="menu-item" data-action="memory" role="menuitem">Show memory</button>
     <button class="menu-item" data-action="thinking" role="menuitem">Toggle reasoning</button>

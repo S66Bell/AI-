@@ -130,6 +130,7 @@ class JarvisServer:
             "user_name": c.user_name,
             "backend": backend,
             "show_thinking": self.show_thinking,
+            "speech_lang": c.speech_lang,
         }
 
     # ── one streamed turn ──────────────────────────────────────────────

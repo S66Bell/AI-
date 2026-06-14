@@ -89,6 +89,28 @@ class Config:
         return self.provider == "ollama"
 
     @property
+    def speech_lang(self) -> str:
+        """A BCP-47 locale for the browser's voice features (recognition + TTS).
+        Honours JARVIS_SPEECH_LANG; otherwise derives one from JARVIS_LANGUAGE.
+        Empty string means 'let the browser decide'."""
+        explicit = os.environ.get("JARVIS_SPEECH_LANG")
+        if explicit:
+            return explicit.strip()
+        mapping = {
+            "日本語": "ja-JP", "japanese": "ja-JP", "ja": "ja-JP",
+            "english": "en-US", "英語": "en-US", "en": "en-US",
+            "中文": "zh-CN", "chinese": "zh-CN",
+            "한국어": "ko-KR", "korean": "ko-KR",
+            "español": "es-ES", "spanish": "es-ES",
+            "français": "fr-FR", "french": "fr-FR",
+            "deutsch": "de-DE", "german": "de-DE",
+        }
+        if self.language:
+            key = self.language.strip()
+            return mapping.get(key, mapping.get(key.lower(), ""))
+        return ""
+
+    @property
     def is_hf(self) -> bool:
         return self.provider == "hf"
 
