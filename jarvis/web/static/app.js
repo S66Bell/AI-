@@ -172,13 +172,15 @@ async function sendMessage(text) {
   } catch (e) {
     addError("Connection lost.");
   } finally {
+    let replyText = "";
     if (bubble) {
       bubble.classList.remove("streaming");
-      if (ttsEnabled) speak(bubble.textContent);
+      replyText = bubble.textContent;
     }
     sending = false;
     $("send").disabled = false;
     scrollToBottom();
+    onReplyComplete(replyText);
   }
 }
 
@@ -225,6 +227,9 @@ async function apiPost(path) {
 async function handleMenu(action) {
   $("menu").classList.add("hidden");
   switch (action) {
+    case "handsfree":
+      toggleHandsFree();
+      break;
     case "speak":
       toggleSpeak();
       break;
@@ -272,11 +277,15 @@ function saveSettings() {
   loadHistory();
 }
 
-// ── Voice: speech-to-text (mic) + text-to-speech (read aloud) ───────────
+// ── Voice: mic input, read-aloud, and hands-free conversation ───────────
 const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition = null;
-let listening = false;
+let handsFree = false;
+// idle | listening | thinking | speaking
+let voiceState = "idle";
+let intentionalStop = false; // set when WE stop recognition (vs. a silence timeout)
 
+// ── read-aloud (TTS) ────────────────────────────────────────────────────
 function updateSpeakLabel() {
   const btn = document.querySelector('.menu-item[data-action="speak"]');
   if (btn) btn.textContent = `音声読み上げ: ${ttsEnabled ? "オン" : "オフ"}`;
@@ -290,62 +299,169 @@ function toggleSpeak() {
   addStatus(`音声読み上げ ${ttsEnabled ? "オン" : "オフ"}`);
 }
 
-function speak(text) {
-  if (!ttsEnabled || !text || !("speechSynthesis" in window)) return;
+function speak(text, onEnd) {
+  const done = typeof onEnd === "function" ? onEnd : () => {};
+  if (!text || !("speechSynthesis" in window)) {
+    done();
+    return;
+  }
   try {
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     if (speechLang) u.lang = speechLang;
+    u.onend = done;
+    u.onerror = done;
     window.speechSynthesis.speak(u);
   } catch (e) {
-    /* ignore — TTS is best-effort */
+    done();
   }
 }
 
-function stopListening() {
-  listening = false;
-  $("mic").classList.remove("listening");
-  if (recognition) {
-    try { recognition.stop(); } catch (e) {}
+// Called when a reply finishes streaming. In hands-free mode JARVIS speaks the
+// reply, then resumes listening once it's done talking (so it doesn't hear
+// itself). Otherwise it just reads aloud if that toggle is on.
+function onReplyComplete(text) {
+  if (handsFree) {
+    voiceState = "speaking";
+    setMicUI();
+    speak(text, () => {
+      if (handsFree) {
+        voiceState = "listening";
+        setMicUI();
+        startRecognition();
+      }
+    });
+  } else if (ttsEnabled) {
+    speak(text);
+  }
+}
+
+// ── speech-to-text ──────────────────────────────────────────────────────
+function setMicUI() {
+  const mic = $("mic");
+  mic.classList.toggle("listening", voiceState === "listening");
+  mic.classList.toggle("handsfree", handsFree);
+}
+
+function startRecognition() {
+  if (!SpeechRec || recognition) return;
+  const rec = new SpeechRec();
+  recognition = rec;
+  rec.lang = speechLang || navigator.language || "en-US";
+  rec.interimResults = false;
+  rec.continuous = handsFree;
+  rec.maxAlternatives = 1;
+
+  rec.onresult = (e) => {
+    const text = (e.results[e.results.length - 1][0].transcript || "").trim();
+    if (!text) return;
+    if (handsFree) {
+      // Pause listening while we get + speak the reply, to avoid echo.
+      intentionalStop = true;
+      voiceState = "thinking";
+      setMicUI();
+      try { rec.stop(); } catch (e) {}
+    }
+    input.value = text;
+    autosize();
+    $("composer").requestSubmit();
+  };
+
+  rec.onerror = (ev) => {
+    if (ev && (ev.error === "not-allowed" || ev.error === "service-not-allowed")) {
+      addError("マイクの使用が許可されていません。ブラウザの設定で許可してください。");
+      stopHandsFree();
+    }
+  };
+
+  rec.onend = () => {
+    recognition = null;
+    if (handsFree && !intentionalStop && voiceState === "listening") {
+      // Ended on a silence timeout — keep the conversation open.
+      setTimeout(startRecognition, 250);
+    } else if (!handsFree) {
+      voiceState = "idle";
+    }
+    intentionalStop = false;
+    setMicUI();
+  };
+
+  try {
+    rec.start();
+  } catch (e) {
     recognition = null;
   }
 }
 
-function toggleListening() {
-  if (listening) {
-    stopListening();
+// One-shot dictation (single tap when not in hands-free mode).
+function oneShotListen() {
+  if (recognition) {
+    intentionalStop = true;
+    try { recognition.stop(); } catch (e) {}
+    voiceState = "idle";
+    setMicUI();
     return;
   }
-  recognition = new SpeechRec();
-  recognition.lang = speechLang || navigator.language || "en-US";
-  recognition.interimResults = false;
-  recognition.maxAlternatives = 1;
-  recognition.onresult = (e) => {
-    const text = (e.results[0][0].transcript || "").trim();
-    if (text) {
-      input.value = text;
-      autosize();
-      $("composer").requestSubmit();
-    }
-  };
-  recognition.onerror = () => stopListening();
-  recognition.onend = () => stopListening();
-  try {
-    recognition.start();
-    listening = true;
-    $("mic").classList.add("listening");
-  } catch (e) {
-    stopListening();
+  voiceState = "listening";
+  setMicUI();
+  startRecognition();
+}
+
+// ── hands-free conversation ─────────────────────────────────────────────
+function updateHandsFreeLabel() {
+  const btn = $("handsfree-item");
+  if (btn) btn.textContent = `ハンズフリー会話: ${handsFree ? "オン" : "オフ"}`;
+}
+
+function startHandsFree() {
+  handsFree = true;
+  ttsEnabled = true; // a spoken conversation needs replies read aloud
+  localStorage.setItem("jarvis_tts", "1");
+  updateSpeakLabel();
+  updateHandsFreeLabel();
+  voiceState = "listening";
+  setMicUI();
+  addStatus("ハンズフリー会話 オン — どうぞ話してください");
+  startRecognition();
+}
+
+function stopHandsFree() {
+  handsFree = false;
+  voiceState = "idle";
+  intentionalStop = true;
+  if (recognition) {
+    try { recognition.stop(); } catch (e) {}
   }
+  if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+  updateHandsFreeLabel();
+  setMicUI();
+  addStatus("ハンズフリー会話 オフ");
+}
+
+function toggleHandsFree() {
+  if (!SpeechRec) {
+    addError("この端末/ブラウザは音声認識に対応していません（ハンズフリー不可）。");
+    return;
+  }
+  if (handsFree) stopHandsFree();
+  else startHandsFree();
 }
 
 function initVoice() {
   updateSpeakLabel();
-  // Speech recognition isn't everywhere (e.g. iOS Safari); show the mic only
-  // when it's actually supported. Read-aloud (TTS) works without it.
+  updateHandsFreeLabel();
+  // Speech recognition isn't everywhere (e.g. iOS Safari). Show the mic and
+  // hands-free option only when it's actually supported; read-aloud works
+  // regardless.
   if (SpeechRec) {
     $("mic").classList.remove("hidden");
-    $("mic").addEventListener("click", toggleListening);
+    $("mic").addEventListener("click", () => {
+      if (handsFree) stopHandsFree();
+      else oneShotListen();
+    });
+  } else {
+    const hf = $("handsfree-item");
+    if (hf) hf.classList.add("hidden");
   }
 }
 
