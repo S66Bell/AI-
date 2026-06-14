@@ -88,6 +88,23 @@ async function loadHistory() {
   }
 }
 
+// ── Proactive opening message ──────────────────────────────────────────
+// A templated greeting (time of day + due reminders) shown once per browser
+// session, below the history divider. Silent on 401/offline, like loadHistory.
+async function loadGreeting() {
+  if (sessionStorage.getItem("jarvis_greeted")) return;
+  try {
+    const res = await fetch("/api/greeting", { headers: authHeaders() });
+    if (!res.ok) return; // e.g. 401 before a token is set
+    const data = await res.json();
+    if (!data.message) return;
+    addMessage("assistant", data.message);
+    sessionStorage.setItem("jarvis_greeted", "1");
+  } catch (e) {
+    /* ignore — chat still works without a greeting */
+  }
+}
+
 // ── Confirmation dialog ────────────────────────────────────────────────
 function askConfirm(id, question) {
   return new Promise((resolve) => {
@@ -271,7 +288,7 @@ function saveSettings() {
   else localStorage.removeItem(TOKEN_KEY);
   closeSettings();
   loadInfo();
-  loadHistory();
+  loadHistory().then(loadGreeting);
 }
 
 // ── Conversation threads ────────────────────────────────────────────────
@@ -668,4 +685,4 @@ if ("serviceWorker" in navigator) {
 
 initVoice();
 loadInfo();
-loadHistory();
+loadHistory().then(loadGreeting);

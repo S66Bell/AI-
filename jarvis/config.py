@@ -88,6 +88,9 @@ class Config:
     web_host: str
     web_port: int
     web_token: str | None
+    # Proactive opening message on app open (time-of-day greeting + due
+    # reminders). Templated, display-only; off means a silent app.
+    greeting: bool
 
     @property
     def is_local(self) -> bool:
@@ -186,4 +189,5 @@ class Config:
             web_host=os.environ.get("JARVIS_WEB_HOST", "127.0.0.1"),
             web_port=int(os.environ.get("JARVIS_WEB_PORT", "8765")),
             web_token=(os.environ.get("JARVIS_WEB_TOKEN") or None),
+            greeting=_bool("JARVIS_GREETING", True),
         )

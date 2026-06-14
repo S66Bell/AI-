@@ -28,6 +28,7 @@ from ..assistant import Assistant
 from ..config import Config
 from ..memory import Memory
 from ..persistence import HFDatasetPersistence
+from ..persona import build_greeting
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -138,6 +139,25 @@ class JarvisServer:
             "show_thinking": self.show_thinking,
             "speech_lang": c.speech_lang,
         }
+
+    # ── proactive opening message ──────────────────────────────────────
+    def greeting(self) -> dict:
+        """A templated opening line for the browser to show once per session.
+
+        Display-only: we don't record it as a turn. The only durable change is
+        marking surfaced reminders so they aren't announced again — which we
+        persist via `_save()`."""
+        if not self.config.greeting:
+            return {"message": None, "surfaced": []}
+        with self._turn_lock:
+            due = self.memory.store.due()
+            text = build_greeting(self.config, due)
+            ids = [r["id"] for r in due]
+            if ids:
+                self.memory.store.mark_surfaced(ids)
+        if ids:
+            self._save()
+        return {"message": text, "surfaced": ids}
 
     # ── one streamed turn ──────────────────────────────────────────────
     def run_turn(self, message: str):
@@ -274,6 +294,11 @@ def create_app(config: Config) -> FastAPI:
     def api_history(x_jarvis_token: str | None = Header(default=None)):
         _check_token(x_jarvis_token)
         return {"messages": server.memory.transcript()}
+
+    @app.get("/api/greeting")
+    def api_greeting(x_jarvis_token: str | None = Header(default=None)):
+        _check_token(x_jarvis_token)
+        return server.greeting()
 
     # ── conversation threads ────────────────────────────────────────────
     @app.get("/api/threads")

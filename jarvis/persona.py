@@ -4,8 +4,70 @@ from __future__ import annotations
 
 import platform
 from datetime import datetime
+from typing import Any, Sequence
 
 from .config import Config
+
+
+def _is_japanese(config: Config) -> bool:
+    """Whether to speak Japanese, per the configured language."""
+    lang = (config.language or "").strip().lower()
+    return "日本" in (config.language or "") or lang.startswith("ja")
+
+
+def build_greeting(
+    config: Config, due: Sequence[Any], now: datetime | None = None
+) -> str:
+    """Compose the proactive opening line shown when the app is opened.
+
+    Templated in Python — no model call — so it's instant and costs nothing.
+    Leads with a time-of-day greeting in JARVIS's dry, concise voice, then, if
+    any reminders are due, appends a compact summary. `due` rows behave like
+    dicts / `sqlite3.Row`, read via `r["text"]` / `r["due_at"]`.
+    """
+
+    now = now or datetime.now()
+    hour = now.hour
+    japanese = _is_japanese(config)
+    user = config.user_name
+
+    if 5 <= hour < 12:
+        tod = "おはようございます" if japanese else "Good morning"
+    elif 12 <= hour < 17:
+        tod = "こんにちは" if japanese else "Good afternoon"
+    elif 17 <= hour < 22:
+        tod = "こんばんは" if japanese else "Good evening"
+    else:
+        tod = "夜更かしですね" if japanese else "Still up"
+
+    if japanese:
+        lead = f"{tod}、{user}。"
+    else:
+        lead = f"{tod}, {user}."
+
+    if not due:
+        return lead
+
+    rows = list(due)
+    shown = rows[:5]
+    overflow = len(rows) - len(shown)
+
+    if japanese:
+        header = f"未対応のリマインダーが{len(rows)}件あります："
+    else:
+        noun = "reminder" if len(rows) == 1 else "reminders"
+        header = f"{len(rows)} pending {noun}:"
+
+    items = []
+    for r in shown:
+        text = r["text"]
+        due_at = r["due_at"]
+        items.append(f"  • {text} ({due_at})" if due_at else f"  • {text}")
+
+    if overflow > 0:
+        items.append(f"  • …他{overflow}件" if japanese else f"  • …and {overflow} more")
+
+    return lead + "\n" + header + "\n" + "\n".join(items)
 
 
 def build_system_prompt(config: Config, long_term_memory: str = "") -> str:
