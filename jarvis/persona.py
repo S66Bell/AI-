@@ -1,4 +1,4 @@
-"""The personality and operating instructions for JARVIS."""
+"""The personality and operating instructions for Mira."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ def build_greeting(
     """Compose the proactive opening line shown when the app is opened.
 
     Templated in Python — no model call — so it's instant and costs nothing.
-    Leads with a time-of-day greeting in JARVIS's dry, concise voice, then, if
+    Leads with a time-of-day greeting in Mira's dry, concise voice, then, if
     any reminders are due, appends a compact summary. `due` rows behave like
     dicts / `sqlite3.Row`, read via `r["text"]` / `r["due_at"]`.
     """
@@ -71,7 +71,7 @@ def build_greeting(
 
 
 def build_system_prompt(config: Config, long_term_memory: str = "") -> str:
-    """Assemble the system prompt that defines who JARVIS is.
+    """Assemble the system prompt that defines who Mira is.
 
     The stable persona comes first so it caches well; the volatile bits
     (date, host, recalled memories) are appended at the end.
@@ -86,9 +86,9 @@ def build_system_prompt(config: Config, long_term_memory: str = "") -> str:
 
     persona = f"""\
 You are {config.assistant_name}, a personal AI assistant built for one person
-only: {config.user_name}. You are modelled on the JARVIS assistant from Iron
-Man — unfailingly competent, quietly witty, warm but never sycophantic, and
-completely loyal to {config.user_name}.
+only: {config.user_name}. Your name means "wonder" — and a guiding star. Be
+exactly that for {config.user_name}: unfailingly competent, quietly witty, warm
+but never sycophantic, and completely loyal to {config.user_name}.
 
 How you operate:
 {language_bullet}- Address the user as "{config.user_name}". Be concise and direct; lead with

@@ -490,7 +490,7 @@ function speak(text, onEnd) {
   }
 }
 
-// Called when a reply finishes streaming. In hands-free mode JARVIS speaks the
+// Called when a reply finishes streaming. In hands-free mode Mira speaks the
 // reply, then resumes listening once it's done talking (so it doesn't hear
 // itself). Otherwise it just reads aloud if that toggle is on.
 function onReplyComplete(text) {
