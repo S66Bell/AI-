@@ -1,5 +1,8 @@
 anthropic>=0.69.0
 python-dotenv>=1.0.0
+# Timezone database for zoneinfo (JARVIS_TIMEZONE). Slim/Docker base images
+# often ship without the system tzdata, so bundle it to keep clocks correct.
+tzdata>=2024.1
 rich>=13.7.0
 prompt_toolkit>=3.0.43
 requests>=2.31.0

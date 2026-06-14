@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import platform
 import shutil
-from datetime import datetime
 
 from . import Tool, ToolContext
 
 
 def _now(tool_input: dict, ctx: ToolContext) -> str:
-    now = datetime.now().astimezone()
+    now = ctx.config.now()
     return now.strftime("%A, %d %B %Y, %H:%M:%S %Z (%z)")
 
 

@@ -151,8 +151,9 @@ the full list. Highlights:
 | `JARVIS_OLLAMA_HOST` | `http://localhost:11434` | Where Ollama is listening. |
 | `ANTHROPIC_API_KEY` | — | Required only when `JARVIS_PROVIDER=claude`. |
 | `JARVIS_MODEL` | `claude-opus-4-8` | Claude model (when using Claude). |
-| `JARVIS_USER_NAME` | `Sir` | What it calls you. |
+| `JARVIS_USER_NAME` | `Yukiさん` | What it calls you. |
 | `JARVIS_NAME` | `Mira` | What you call it. |
+| `JARVIS_TIMEZONE` | `Asia/Tokyo` | IANA timezone for every clock it shows (matters on UTC cloud hosts). |
 | `JARVIS_DATA_DIR` | `~/.jarvis` | Where memory + history live. |
 | `JARVIS_HF_DATASET` | — | Private HF Dataset repo id for free persistence (see below). |
 | `JARVIS_SHOW_THINKING` | `0` | Stream a summary of its reasoning. |
