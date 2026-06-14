@@ -227,9 +227,6 @@ async function apiPost(path) {
 async function handleMenu(action) {
   $("menu").classList.add("hidden");
   switch (action) {
-    case "handsfree":
-      toggleHandsFree();
-      break;
     case "speak":
       toggleSpeak();
       break;
@@ -280,8 +277,9 @@ function saveSettings() {
 // ── Voice: mic input, read-aloud, and hands-free conversation ───────────
 const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition = null;
-let handsFree = localStorage.getItem("jarvis_handsfree") === "1";
+let handsFree = false;
 let gestureArmed = false;
+let ttsBeforeHandsFree = false;
 // idle | listening | thinking | speaking
 let voiceState = "idle";
 let intentionalStop = false; // set when WE stop recognition (vs. a silence timeout)
@@ -390,51 +388,32 @@ function startRecognition() {
   }
 }
 
-// One-shot dictation (single tap when not in hands-free mode).
-function oneShotListen() {
-  if (recognition) {
-    intentionalStop = true;
-    try { recognition.stop(); } catch (e) {}
-    voiceState = "idle";
-    setMicUI();
-    return;
-  }
-  voiceState = "listening";
-  setMicUI();
-  startRecognition();
-}
-
-// ── hands-free conversation ─────────────────────────────────────────────
-function updateHandsFreeLabel() {
-  const btn = $("handsfree-item");
-  if (btn) btn.textContent = `ハンズフリー会話: ${handsFree ? "オン" : "オフ"}`;
-}
-
+// ── always-on listening (mic button toggle) ─────────────────────────────
 function startHandsFree() {
   handsFree = true;
-  localStorage.setItem("jarvis_handsfree", "1");
+  ttsBeforeHandsFree = ttsEnabled;
   ttsEnabled = true; // a spoken conversation needs replies read aloud
   localStorage.setItem("jarvis_tts", "1");
   updateSpeakLabel();
-  updateHandsFreeLabel();
   voiceState = "listening";
   setMicUI();
-  addStatus("ハンズフリー会話 オン — どうぞ話してください");
+  addStatus("マイク オン — 常時聞き取り中です");
   startRecognition();
 }
 
 function stopHandsFree() {
   handsFree = false;
-  localStorage.setItem("jarvis_handsfree", "0");
   voiceState = "idle";
   intentionalStop = true;
   if (recognition) {
     try { recognition.stop(); } catch (e) {}
   }
   if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-  updateHandsFreeLabel();
+  ttsEnabled = ttsBeforeHandsFree; // back to whatever read-aloud was before
+  localStorage.setItem("jarvis_tts", ttsEnabled ? "1" : "0");
+  updateSpeakLabel();
   setMicUI();
-  addStatus("ハンズフリー会話 オフ");
+  addStatus("マイク オフ — 通常のチャットに戻りました");
 }
 
 // Keep the mic on: (re)start listening, and if the browser requires a user
@@ -457,38 +436,17 @@ function armGestureAutostart() {
   document.addEventListener("pointerdown", handler, { once: true });
 }
 
-function toggleHandsFree() {
-  if (!SpeechRec) {
-    addError("この端末/ブラウザは音声認識に対応していません（ハンズフリー不可）。");
-    return;
-  }
-  if (handsFree) stopHandsFree();
-  else startHandsFree();
-}
-
 function initVoice() {
   updateSpeakLabel();
-  updateHandsFreeLabel();
-  // Speech recognition isn't everywhere (e.g. iOS Safari). Show the mic and
-  // hands-free option only when it's actually supported; read-aloud works
-  // regardless.
+  // Start in normal chat mode. Tapping the mic toggles always-on listening;
+  // tapping it again returns to normal chat. Recognition isn't everywhere
+  // (e.g. iOS Safari), so show the mic only when supported.
   if (SpeechRec) {
     $("mic").classList.remove("hidden");
     $("mic").addEventListener("click", () => {
       if (handsFree) stopHandsFree();
-      else oneShotListen();
+      else startHandsFree();
     });
-    // Remembered hands-free preference: keep the mic on across sessions, and
-    // auto-start it on open (the browser may ask for permission / a first tap).
-    if (handsFree) {
-      ttsEnabled = true;
-      updateSpeakLabel();
-      addStatus("ハンズフリー会話 オン — どうぞ話してください");
-      resumeHandsFreeListening();
-    }
-  } else {
-    const hf = $("handsfree-item");
-    if (hf) hf.classList.add("hidden");
   }
 }
 

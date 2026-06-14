@@ -174,11 +174,11 @@ automatically. The window:
 
 - Streams replies live and shows what JARVIS is doing.
 - Pops a **Proceed / Decline** dialog before any destructive action runs.
-- **Voice, in the browser:** tap 🎤 to talk (speech-to-text) and toggle
-  read-aloud (text-to-speech) from the `⋮` menu — using the device's own Web
-  Speech engine, so it works on the phone with nothing to install. There's also
-  a **hands-free conversation** mode (`⋮` menu) that keeps the mic on and is
-  remembered across sessions. (Mic input needs a browser that supports it, e.g.
+- **Voice, in the browser:** tap 🎤 to turn on **always-on listening** — JARVIS
+  hears you, replies aloud, and keeps listening for a hands-free conversation;
+  tap 🎤 again to return to normal chat. Read-aloud can also be toggled on its
+  own from the `⋮` menu. Uses the device's own Web Speech engine, so it works on
+  the phone with nothing to install. (Mic needs a supporting browser, e.g.
   Chrome/Android; read-aloud is broader.)
 - Has a `⋮` menu for read-aloud, reset, memory, reasoning toggle, clear-history,
   and settings.
