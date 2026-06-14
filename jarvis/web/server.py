@@ -168,6 +168,39 @@ class JarvisServer:
     def resolve_confirm(self, cid: str, approved: bool) -> bool:
         return self._current.resolve_confirm(cid, approved)
 
+    # ── conversation threads ───────────────────────────────────────────
+    # Mutations take the turn lock so a thread can't change mid-reply.
+    def list_threads(self) -> list[dict]:
+        return self.memory.list_threads()
+
+    def current_thread(self) -> int:
+        return self.memory.thread_id
+
+    def new_thread(self) -> int:
+        with self._turn_lock:
+            tid = self.memory.new_thread()
+            self.assistant.load_context()
+            return tid
+
+    def switch_thread(self, thread_id: int):
+        with self._turn_lock:
+            if not self.memory.switch_thread(thread_id):
+                return None
+            self.assistant.load_context()
+            return self.memory.transcript()
+
+    def delete_thread(self, thread_id: int) -> int:
+        with self._turn_lock:
+            self.memory.delete_thread(thread_id)
+            self.assistant.load_context()
+            return self.memory.thread_id
+
+    def rename_thread(self, thread_id: int, title: str) -> None:
+        self.memory.rename_thread(thread_id, title)
+
+    def search(self, query: str) -> list[dict]:
+        return self.memory.search(query)
+
 
 def create_app(config: Config) -> FastAPI:
     server = JarvisServer(config)
@@ -224,6 +257,56 @@ def create_app(config: Config) -> FastAPI:
     def api_history(x_jarvis_token: str | None = Header(default=None)):
         _check_token(x_jarvis_token)
         return {"messages": server.memory.transcript()}
+
+    # ── conversation threads ────────────────────────────────────────────
+    @app.get("/api/threads")
+    def api_threads(x_jarvis_token: str | None = Header(default=None)):
+        _check_token(x_jarvis_token)
+        return {"threads": server.list_threads(), "current": server.current_thread()}
+
+    @app.post("/api/threads/new")
+    def api_threads_new(x_jarvis_token: str | None = Header(default=None)):
+        _check_token(x_jarvis_token)
+        return {"current": server.new_thread(), "messages": []}
+
+    @app.post("/api/threads/switch")
+    async def api_threads_switch(
+        request: Request, x_jarvis_token: str | None = Header(default=None)
+    ):
+        _check_token(x_jarvis_token)
+        body = await request.json()
+        messages = server.switch_thread(int(body.get("id", 0)))
+        if messages is None:
+            raise HTTPException(status_code=404, detail="No such thread.")
+        return {"current": server.current_thread(), "messages": messages}
+
+    @app.post("/api/threads/rename")
+    async def api_threads_rename(
+        request: Request, x_jarvis_token: str | None = Header(default=None)
+    ):
+        _check_token(x_jarvis_token)
+        body = await request.json()
+        title = (body.get("title") or "").strip()
+        if not title:
+            raise HTTPException(status_code=400, detail="Empty title.")
+        server.rename_thread(int(body.get("id", 0)), title)
+        return {"ok": True}
+
+    @app.post("/api/threads/delete")
+    async def api_threads_delete(
+        request: Request, x_jarvis_token: str | None = Header(default=None)
+    ):
+        _check_token(x_jarvis_token)
+        body = await request.json()
+        current = server.delete_thread(int(body.get("id", 0)))
+        return {"current": current, "messages": server.memory.transcript()}
+
+    @app.get("/api/threads/search")
+    def api_threads_search(
+        q: str = "", x_jarvis_token: str | None = Header(default=None)
+    ):
+        _check_token(x_jarvis_token)
+        return {"results": server.search(q)}
 
     @app.post("/api/forget")
     async def api_forget(
