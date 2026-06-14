@@ -2,3 +2,6 @@
 # (the core CLI in requirements.txt does not need these)
 fastapi>=0.110.0
 uvicorn>=0.30.0
+# Web Push (VAPID) for proactive briefings. Without this lib or the JARVIS_VAPID_*
+# keys, push is silently disabled. Pulls py-vapid + cryptography.
+pywebpush>=1.14.0

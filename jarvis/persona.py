@@ -51,6 +51,21 @@ def build_greeting(
     else:
         lead = f"{tod}, {user}."
 
+    blocks = _agenda_and_reminder_blocks(config, due, events)
+    if not blocks:
+        return lead
+    return lead + "\n" + "\n".join(blocks)
+
+
+def _agenda_and_reminder_blocks(
+    config: Config, due: Sequence[Any], events: Sequence[Any]
+) -> list[str]:
+    """The agenda + due-reminder text blocks shared by the in-app greeting and
+    the proactive briefing. Each entry is a self-contained multi-line string;
+    the caller joins them with newlines. `due` rows read like dicts /
+    `sqlite3.Row` (`r["text"]` / `r["due_at"]`); `events` are the normalized
+    dicts from `CalendarClient` (`summary`, `start`, `all_day`)."""
+    japanese = _is_japanese(config)
     blocks: list[str] = []
 
     # Today's calendar agenda, when the calendar is configured and has events.
@@ -100,9 +115,29 @@ def build_greeting(
             )
         blocks.append(header + "\n" + "\n".join(items))
 
-    if not blocks:
-        return lead
-    return lead + "\n" + "\n".join(blocks)
+    return blocks
+
+
+def build_briefing(
+    config: Config, due: Sequence[Any], events: Sequence[Any]
+) -> tuple[str, str]:
+    """Compose the proactive briefing pushed to the phone as (title, body).
+
+    Same templated content as the in-app greeting's agenda/reminder blocks, but
+    shaped for a notification: a short title plus a body that stands on its own
+    even when there's nothing to report."""
+    japanese = _is_japanese(config)
+    title = "今日のブリーフィング" if japanese else "Today's briefing"
+    blocks = _agenda_and_reminder_blocks(config, due, events)
+    if blocks:
+        body = "\n".join(blocks)
+    else:
+        body = (
+            "今日は予定もリマインダーもありません。"
+            if japanese
+            else "Nothing on the calendar and no pending reminders."
+        )
+    return title, body
 
 
 def build_system_prompt(config: Config, long_term_memory: str = "") -> str:

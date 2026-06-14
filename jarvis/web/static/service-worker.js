@@ -1,7 +1,7 @@
 // Mira PWA service worker: cache the app shell so it installs and opens
 // instantly. API calls (/api/*) always go to the network — never cached.
 
-const CACHE = "mira-shell-v4";
+const CACHE = "mira-shell-v5";
 const SHELL = [
   "/",
   "/static/styles.css",
@@ -43,6 +43,38 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(() => cached);
       return cached || network;
+    })
+  );
+});
+
+// ── Web Push: proactive briefings ──────────────────────────────────────
+// The server pushes a JSON {title, body}; we surface it as a notification.
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (e) {
+    data = {};
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || "Mira", {
+      body: data.body || "",
+      icon: "/static/icon.svg",
+      badge: "/static/icon.svg",
+      data: { url: "/" },
+    })
+  );
+});
+
+// Tapping a notification focuses an open Mira tab, or opens one.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const client of list) {
+        if ("focus" in client) return client.focus();
+      }
+      return clients.openWindow("/");
     })
   );
 });

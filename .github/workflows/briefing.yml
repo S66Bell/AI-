@@ -1,0 +1,23 @@
+name: Morning briefing
+
+# Pings the Space once a day so Mira composes today's briefing and pushes it to
+# every subscribed device. Setup (once): add a repository variable SPACE_URL
+# pointing at the Space (e.g. https://<user>-<space>.hf.space, no trailing
+# slash), and a repository secret JARVIS_WEB_TOKEN that equals the Space's
+# JARVIS_WEB_TOKEN. Without web-push configured on the Space the call is a no-op.
+
+on:
+  schedule:
+    - cron: "0 22 * * *"   # 07:00 JST = 22:00 UTC (previous day)
+  workflow_dispatch:
+
+jobs:
+  briefing:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger briefing
+        # Retry generously — a sleeping Space can take a while to cold-start.
+        run: |
+          curl -fsS --retry 5 --retry-all-errors --retry-delay 15 --max-time 180 \
+            -X POST "${{ vars.SPACE_URL }}/api/briefing/send" \
+            -H "X-Jarvis-Token: ${{ secrets.JARVIS_WEB_TOKEN }}"

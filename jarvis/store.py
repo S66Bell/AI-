@@ -62,6 +62,13 @@ class Store:
                     done       INTEGER NOT NULL DEFAULT 0,
                     gcal_event_id TEXT           -- mirrored Google Calendar event, if any
                 );
+
+                CREATE TABLE IF NOT EXISTS push_subscriptions (
+                    endpoint   TEXT PRIMARY KEY,
+                    p256dh     TEXT NOT NULL,
+                    auth       TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
                 """
             )
             # Idempotent migration for databases created before calendar sync: add
@@ -298,6 +305,31 @@ class Store:
                     "UPDATE reminders SET done = 1 WHERE done = 0 AND text LIKE ?",
                     (f"%{query}%",),
                 )
+            self._conn.commit()
+            return cur.rowcount
+
+    # ── web-push subscriptions ─────────────────────────────────────────
+    def add_subscription(self, endpoint: str, p256dh: str, auth: str) -> None:
+        """Store (or refresh) a browser's push subscription. Keyed on endpoint,
+        so re-subscribing the same device is idempotent rather than duplicating."""
+        with self._lock:
+            self._conn.execute(
+                "INSERT OR REPLACE INTO push_subscriptions "
+                "(endpoint, p256dh, auth, created_at) VALUES (?, ?, ?, ?)",
+                (endpoint, p256dh, auth, _now()),
+            )
+            self._conn.commit()
+
+    def list_subscriptions(self) -> list[sqlite3.Row]:
+        with self._lock:
+            return list(self._conn.execute("SELECT * FROM push_subscriptions"))
+
+    def remove_subscription(self, endpoint: str) -> int:
+        """Drop a subscription (on unsubscribe, or when push reports it gone)."""
+        with self._lock:
+            cur = self._conn.execute(
+                "DELETE FROM push_subscriptions WHERE endpoint = ?", (endpoint,)
+            )
             self._conn.commit()
             return cur.rowcount
 

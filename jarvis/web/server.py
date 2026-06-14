@@ -28,7 +28,8 @@ from ..assistant import Assistant
 from ..config import Config
 from ..memory import Memory
 from ..persistence import HFDatasetPersistence
-from ..persona import build_greeting
+from ..persona import build_briefing, build_greeting
+from ..push import PushClient
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -122,6 +123,9 @@ class JarvisServer:
             notify=lambda m: self._current.status(m),
             on_thinking=lambda c: self._current.thinking(c) if self.show_thinking else None,
         )
+
+        # Optional Web Push for proactive briefings; None when unconfigured.
+        self.push = PushClient.from_config(config)
 
     # ── info / banner ──────────────────────────────────────────────────
     def info(self) -> dict:
@@ -245,6 +249,55 @@ class JarvisServer:
     def search(self, query: str) -> list[dict]:
         return self.memory.search(query)
 
+    # ── proactive briefing via Web Push ────────────────────────────────
+    def add_push_subscription(self, sub: dict) -> None:
+        """Register a browser's push subscription so we can reach it later."""
+        keys = sub.get("keys") or {}
+        self.memory.store.add_subscription(
+            sub["endpoint"], keys["p256dh"], keys["auth"]
+        )
+        self._save()
+
+    def remove_push_subscription(self, endpoint: str) -> None:
+        if not endpoint:
+            return
+        self.memory.store.remove_subscription(endpoint)
+        self._save()
+
+    def send_briefing(self) -> dict:
+        """Compose today's briefing and push it to every registered device.
+
+        A no-op (disabled) when push isn't configured. Dead subscriptions are
+        pruned, and due reminders are marked surfaced only if the briefing was
+        actually delivered to at least one device — so a total delivery failure
+        doesn't silently swallow them."""
+        if self.push is None:
+            return {"sent": 0, "pruned": 0, "disabled": True}
+        with self._turn_lock:
+            due = self.memory.store.due()
+            gcal = getattr(self.assistant, "gcal", None)
+            events = gcal.today_events() if gcal else []
+            title, body = build_briefing(self.config, due, events)
+            ids = [r["id"] for r in due]
+            subs = self.memory.store.list_subscriptions()
+        payload = json.dumps({"title": title, "body": body})
+        sent = pruned = 0
+        for s in subs:
+            info = {
+                "endpoint": s["endpoint"],
+                "keys": {"p256dh": s["p256dh"], "auth": s["auth"]},
+            }
+            r = self.push.send(info, payload)
+            if r == "gone":
+                self.memory.store.remove_subscription(s["endpoint"])
+                pruned += 1
+            elif r is True:
+                sent += 1
+        if ids and sent:
+            self.memory.store.mark_surfaced(ids)
+        self._save()
+        return {"sent": sent, "pruned": pruned, "due": len(ids), "events": len(events)}
+
 
 def create_app(config: Config) -> FastAPI:
     server = JarvisServer(config)
@@ -306,6 +359,37 @@ def create_app(config: Config) -> FastAPI:
     def api_greeting(x_jarvis_token: str | None = Header(default=None)):
         _check_token(x_jarvis_token)
         return server.greeting()
+
+    # ── proactive briefing via Web Push ──────────────────────────────────
+    @app.get("/api/push/key")
+    def api_push_key(x_jarvis_token: str | None = Header(default=None)):
+        _check_token(x_jarvis_token)
+        return {"key": config.vapid_public_key, "enabled": server.push is not None}
+
+    @app.post("/api/push/subscribe")
+    async def api_push_subscribe(
+        request: Request, x_jarvis_token: str | None = Header(default=None)
+    ):
+        _check_token(x_jarvis_token)
+        body = await request.json()
+        if not body.get("endpoint"):
+            raise HTTPException(status_code=400, detail="Missing subscription endpoint.")
+        server.add_push_subscription(body)
+        return {"ok": True}
+
+    @app.post("/api/push/unsubscribe")
+    async def api_push_unsubscribe(
+        request: Request, x_jarvis_token: str | None = Header(default=None)
+    ):
+        _check_token(x_jarvis_token)
+        body = await request.json()
+        server.remove_push_subscription((body.get("endpoint") or "").strip())
+        return {"ok": True}
+
+    @app.post("/api/briefing/send")
+    def api_briefing_send(x_jarvis_token: str | None = Header(default=None)):
+        _check_token(x_jarvis_token)
+        return server.send_briefing()
 
     # ── conversation threads ────────────────────────────────────────────
     @app.get("/api/threads")
