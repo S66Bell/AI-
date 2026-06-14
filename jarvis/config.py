@@ -151,7 +151,7 @@ class Config:
             model=os.environ.get("JARVIS_MODEL", "claude-opus-4-8"),
             effort=os.environ.get("JARVIS_EFFORT", "high"),
             user_name=os.environ.get("JARVIS_USER_NAME", "Sir"),
-            assistant_name=os.environ.get("JARVIS_NAME", "JARVIS"),
+            assistant_name=os.environ.get("JARVIS_NAME", "Mira"),
             language=(os.environ.get("JARVIS_LANGUAGE") or None),
             data_dir=data_dir,
             show_thinking=_bool("JARVIS_SHOW_THINKING", False),

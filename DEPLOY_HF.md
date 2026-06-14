@@ -1,14 +1,17 @@
-# Running JARVIS on Hugging Face
+# Running Mira on Hugging Face
 
-There are two independent ways to put JARVIS on Hugging Face. You can use
+There are two independent ways to put Mira on Hugging Face. You can use
 either on its own, or both together for a fully cloud-hosted assistant.
+
+> The Python package, env vars (`JARVIS_*`), and data files keep the `jarvis`
+> name for compatibility — the assistant is **Mira**.
 
 - **A — Brain on HF (Inference):** keep running the app on your own machine,
   but let a model *served by Hugging Face* be the brain. No local GPU/Ollama.
 - **B — App on HF (Spaces):** host the whole web app on a Hugging Face Space
   so it has an always-on public URL you can open from any phone.
 
-> **What you give up in the cloud:** JARVIS's tools (`run_shell`, file edits)
+> **What you give up in the cloud:** Mira's tools (`run_shell`, file edits)
 > run **wherever the app process runs**. On a Space that's HF's sandbox, not
 > your computer — great for "look things up / reason / write", but it can't
 > touch your home machine. For that, keep the app on your PC (A only).
@@ -19,7 +22,7 @@ either on its own, or both together for a fully cloud-hosted assistant.
 
 1. Create a token at <https://huggingface.co/settings/tokens> (a free "Read"
    token works for the serverless Inference API).
-2. Point JARVIS at HF:
+2. Point Mira at HF:
 
    ```bash
    pip install -r requirements-web.txt
@@ -29,7 +32,7 @@ either on its own, or both together for a fully cloud-hosted assistant.
    python serve.py        # or: python -m jarvis    (terminal)
    ```
 
-JARVIS now calls HF's OpenAI-compatible router instead of Ollama. Tools work
+Mira now calls HF's OpenAI-compatible router instead of Ollama. Tools work
 with tool-capable models (Qwen, Llama, …); with a model that can't call tools
 it falls back to chat-only and says so once.
 
@@ -83,7 +86,7 @@ HF backend already selected.
 
    ```yaml
    ---
-   title: JARVIS
+   title: Mira
    emoji: 🤖
    colorFrom: blue
    colorTo: indigo
@@ -104,7 +107,7 @@ HF backend already selected.
    Space restarts.
 
 When the Space finishes building, open its URL, go to **Settings** in the app,
-paste your `JARVIS_WEB_TOKEN`, and you're talking to JARVIS from anywhere —
+paste your `JARVIS_WEB_TOKEN`, and you're talking to Mira from anywhere —
 **Add to Home Screen** to use it like a native app.
 
 ### Security notes

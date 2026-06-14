@@ -1,7 +1,7 @@
 [project]
 name = "jarvis-assistant"
 version = "0.1.0"
-description = "A fully personal, JARVIS-style AI assistant powered by Claude"
+description = "Mira — a fully personal AI assistant powered by Claude"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

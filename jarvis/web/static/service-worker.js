@@ -1,7 +1,7 @@
-// JARVIS PWA service worker: cache the app shell so it installs and opens
+// Mira PWA service worker: cache the app shell so it installs and opens
 // instantly. API calls (/api/*) always go to the network — never cached.
 
-const CACHE = "jarvis-shell-v1";
+const CACHE = "mira-shell-v2";
 const SHELL = [
   "/",
   "/static/styles.css",

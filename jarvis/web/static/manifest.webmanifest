@@ -1,6 +1,6 @@
 {
-  "name": "JARVIS — your own AI",
-  "short_name": "JARVIS",
+  "name": "Mira — your own AI",
+  "short_name": "Mira",
   "description": "A private, self-hosted AI assistant, on your phone.",
   "start_url": "/",
   "scope": "/",

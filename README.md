@@ -1,6 +1,6 @@
-# JARVIS — your own independent AI
+# Mira — your own independent AI
 
-A fully self-hosted, JARVIS-style AI assistant. It runs a **free, local language
+A fully self-hosted AI assistant. It runs a **free, local language
 model on your own machine** — no API keys, no usage fees, no calls to Claude or
 OpenAI — and once the model is downloaded it works **completely offline**. It
 has a persistent personality, long-term memory, real tools (shell, files, web),
@@ -9,7 +9,10 @@ and optional voice.
 It's also pluggable: if you ever want a more powerful brain, flip one setting to
 use the Claude API instead. The default is local and free.
 
-> "Sometimes you gotta run before you can walk." — JARVIS does the running.
+> Note: the Python package, env vars (`JARVIS_*`), and data files keep the
+> `jarvis` name for compatibility — the assistant is **Mira**.
+
+> "Sometimes you gotta run before you can walk." — Mira does the running.
 
 ## What it can do
 
@@ -29,17 +32,17 @@ use the Claude API instead. The default is local and free.
 
 **1. Install [Ollama](https://ollama.com/download)** (the local model runtime),
 then pull a model. The default is `qwen2.5:7b` — a strong **tool-using** model
-for ~16GB RAM, so JARVIS can actually run shell, files, and web for you:
+for ~16GB RAM, so Mira can actually run shell, files, and web for you:
 
 ```bash
 ollama pull qwen2.5:7b      # ~8GB RAM? use qwen2.5:3b or llama3.2:3b
 ```
 
 > Prefer a different brain? Any Ollama model works. Note that **Gemma** has no
-> tool-calling in Ollama, so JARVIS falls back to **chat-only** with it (no
+> tool-calling in Ollama, so Mira falls back to **chat-only** with it (no
 > shell/file/web actions) — fine for conversation, see the model table below.
 
-**2. Install JARVIS and configure:**
+**2. Install Mira and configure:**
 
 ```bash
 pip install -r requirements.txt
@@ -54,7 +57,7 @@ python run.py               # or:  python -m jarvis
 
 ```
 You  what's running on port 8080?
-JARVIS  Let me take a look, Sir.
+Mira  Let me take a look, Sir.
 · using run_shell
 Nothing is listening on port 8080 at the moment.
 ```
@@ -65,8 +68,8 @@ That's it — a private AI assistant running on your own machine, for free.
 
 Set your choice in `.env` via `JARVIS_OLLAMA_MODEL`.
 
-**Full tool use (default) — Qwen / Llama:** lets JARVIS run shell, edit files,
-and search the web. JARVIS relies on tool calling to get things done, so these
+**Full tool use (default) — Qwen / Llama:** lets Mira run shell, edit files,
+and search the web. Mira relies on tool calling to get things done, so these
 unlock its full capabilities.
 
 | Your RAM | Suggested model | Pull command |
@@ -76,7 +79,7 @@ unlock its full capabilities.
 | 32 GB+ | `qwen2.5:14b` and up | `ollama pull qwen2.5:14b` |
 
 **Chat-only — Gemma:** great conversation, but no tools (no shell/file/web).
-With a model that can't call tools, JARVIS automatically falls back to chat-only
+With a model that can't call tools, Mira automatically falls back to chat-only
 and tells you once.
 
 | Your RAM | Gemma model | Pull command |
@@ -89,12 +92,12 @@ and tells you once.
 
 If you want a more capable brain, set `JARVIS_PROVIDER=claude` and add your
 `ANTHROPIC_API_KEY` in `.env`. Everything else — persona, memory, tools, UI —
-stays identical. On `claude-fable-5`, JARVIS automatically opts into a
+stays identical. On `claude-fable-5`, Mira automatically opts into a
 server-side fallback so a safety refusal is re-served rather than failing.
 
 ## Run it on Hugging Face (no local GPU)
 
-Prefer the cloud? JARVIS can use a model **served by Hugging Face** as its
+Prefer the cloud? Mira can use a model **served by Hugging Face** as its
 brain, and the whole app can be **hosted on a Hugging Face Space** with an
 always-on URL you open from your phone:
 
@@ -108,7 +111,7 @@ It calls HF's OpenAI-compatible router (default model
 included for one-click Space hosting. Full walkthrough — brain-on-HF and
 app-on-Spaces, secrets, and persistent memory — is in **[DEPLOY_HF.md](DEPLOY_HF.md)**.
 
-> In the cloud, JARVIS's tools run in HF's sandbox, not on your computer — so a
+> In the cloud, Mira's tools run in HF's sandbox, not on your computer — so a
 > Space is ideal for chat/research/writing, while running the app on your own PC
 > (optionally with the HF brain) is what lets it act on *your* machine.
 
@@ -116,7 +119,7 @@ app-on-Spaces, secrets, and persistent memory — is in **[DEPLOY_HF.md](DEPLOY_
 
 A free Space has **no persistent disk** — its filesystem is wiped on every
 restart, so conversations, threads, and long-term memory would be lost. To keep
-them for free, JARVIS can snapshot its data to a **private HF Dataset** and
+them for free, Mira can snapshot its data to a **private HF Dataset** and
 restore it on boot:
 
 1. Create a **write** token at <https://huggingface.co/settings/tokens>.
@@ -129,7 +132,7 @@ restore it on boot:
    | `HF_TOKEN` | your **write** token (also used for inference) |
    | `JARVIS_HF_DATASET` | `your-name/jarvis-data` |
 
-That's it. On boot JARVIS restores the latest snapshot; after each turn (and on
+That's it. On boot Mira restores the latest snapshot; after each turn (and on
 shutdown) it saves back, debounced into at most one commit every few seconds.
 Locally you can use the same vars to back up `~/.jarvis` to the Hub. If
 `JARVIS_HF_DATASET` is unset, persistence is simply off and nothing changes.
@@ -149,7 +152,7 @@ the full list. Highlights:
 | `ANTHROPIC_API_KEY` | — | Required only when `JARVIS_PROVIDER=claude`. |
 | `JARVIS_MODEL` | `claude-opus-4-8` | Claude model (when using Claude). |
 | `JARVIS_USER_NAME` | `Sir` | What it calls you. |
-| `JARVIS_NAME` | `JARVIS` | What you call it. |
+| `JARVIS_NAME` | `Mira` | What you call it. |
 | `JARVIS_DATA_DIR` | `~/.jarvis` | Where memory + history live. |
 | `JARVIS_HF_DATASET` | — | Private HF Dataset repo id for free persistence (see below). |
 | `JARVIS_SHOW_THINKING` | `0` | Stream a summary of its reasoning. |
@@ -160,11 +163,11 @@ the full list. Highlights:
 
 ```
 /help            show help
-/memory          list everything JARVIS remembers
+/memory          list everything Mira remembers
 /forget <text>   forget remembered facts matching <text>
 /reset           clear the current conversation context
 /clear-history   wipe saved conversation history on disk
-/thinking        toggle showing JARVIS's reasoning
+/thinking        toggle showing Mira's reasoning
 /voice           toggle voice mode
 /exit            shut down
 ```
@@ -184,7 +187,7 @@ Then run with `JARVIS_VOICE=1` or toggle `/voice` mid-session.
 
 ## Web app (runs on your PC)
 
-Prefer a chat window over the terminal? JARVIS ships with a small web app — the
+Prefer a chat window over the terminal? Mira ships with a small web app — the
 same assistant, persona, memory, and tools, in your browser.
 
 ```bash
@@ -195,9 +198,9 @@ python serve.py
 It starts a local server and **opens `http://localhost:8765` in your browser**
 automatically. The window:
 
-- Streams replies live and shows what JARVIS is doing.
+- Streams replies live and shows what Mira is doing.
 - Pops a **Proceed / Decline** dialog before any destructive action runs.
-- **Voice, in the browser:** tap 🎤 to turn on **always-on listening** — JARVIS
+- **Voice, in the browser:** tap 🎤 to turn on **always-on listening** — Mira
   hears you, replies aloud, and keeps listening for a hands-free conversation;
   tap 🎤 again to return to normal chat. Read-aloud can also be toggled on its
   own from the `⋮` menu. Uses the device's own Web Speech engine, so it works on
@@ -242,7 +245,7 @@ untokenised on a trusted, localhost-only or LAN setup.
 ```
 jarvis/
   config.py        environment-driven configuration
-  persona.py       the JARVIS personality (system prompt)
+  persona.py       the Mira personality (system prompt)
   memory.py        conversation transcript + long-term facts (on disk)
   store.py         SQLite store: conversation threads + reminders
   assistant.py     provider-agnostic orchestrator (persona + memory + tools)
@@ -275,7 +278,7 @@ either brain.
 ## Why it's "independent"
 
 A frontier model like Claude or GPT can't be trained from scratch for free —
-that takes millions of dollars of compute. But you don't need to: JARVIS runs an
+that takes millions of dollars of compute. But you don't need to: Mira runs an
 **open-weight model** (Qwen, Llama, Mistral, …) locally via Ollama. The weights
 live on your disk, the conversation never leaves your machine, and after the
 one-time model download it needs no internet and no third-party service. That's
@@ -283,7 +286,7 @@ a genuinely independent, private, zero-cost AI you fully own.
 
 ## Safety
 
-JARVIS runs with your authority on your machine, but it asks before doing
+Mira runs with your authority on your machine, but it asks before doing
 anything destructive — deleting data, overwriting files, `sudo`, force-pushing,
 piping the internet into a shell, and so on. Set `JARVIS_CONFIRM_ALL_SHELL=1` to
 be asked before *any* command runs. Memory and history stay on your local disk.
