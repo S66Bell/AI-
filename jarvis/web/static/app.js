@@ -280,7 +280,8 @@ function saveSettings() {
 // ── Voice: mic input, read-aloud, and hands-free conversation ───────────
 const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition = null;
-let handsFree = false;
+let handsFree = localStorage.getItem("jarvis_handsfree") === "1";
+let gestureArmed = false;
 // idle | listening | thinking | speaking
 let voiceState = "idle";
 let intentionalStop = false; // set when WE stop recognition (vs. a silence timeout)
@@ -325,11 +326,7 @@ function onReplyComplete(text) {
     voiceState = "speaking";
     setMicUI();
     speak(text, () => {
-      if (handsFree) {
-        voiceState = "listening";
-        setMicUI();
-        startRecognition();
-      }
+      resumeHandsFreeListening();
     });
   } else if (ttsEnabled) {
     speak(text);
@@ -415,6 +412,7 @@ function updateHandsFreeLabel() {
 
 function startHandsFree() {
   handsFree = true;
+  localStorage.setItem("jarvis_handsfree", "1");
   ttsEnabled = true; // a spoken conversation needs replies read aloud
   localStorage.setItem("jarvis_tts", "1");
   updateSpeakLabel();
@@ -427,6 +425,7 @@ function startHandsFree() {
 
 function stopHandsFree() {
   handsFree = false;
+  localStorage.setItem("jarvis_handsfree", "0");
   voiceState = "idle";
   intentionalStop = true;
   if (recognition) {
@@ -436,6 +435,26 @@ function stopHandsFree() {
   updateHandsFreeLabel();
   setMicUI();
   addStatus("ハンズフリー会話 オフ");
+}
+
+// Keep the mic on: (re)start listening, and if the browser requires a user
+// gesture to access the mic, begin on the very next tap anywhere.
+function resumeHandsFreeListening() {
+  if (!handsFree) return;
+  voiceState = "listening";
+  setMicUI();
+  startRecognition();
+  if (!recognition) armGestureAutostart();
+}
+
+function armGestureAutostart() {
+  if (gestureArmed) return;
+  gestureArmed = true;
+  const handler = () => {
+    gestureArmed = false;
+    if (handsFree && !recognition && voiceState === "listening") startRecognition();
+  };
+  document.addEventListener("pointerdown", handler, { once: true });
 }
 
 function toggleHandsFree() {
@@ -459,6 +478,14 @@ function initVoice() {
       if (handsFree) stopHandsFree();
       else oneShotListen();
     });
+    // Remembered hands-free preference: keep the mic on across sessions, and
+    // auto-start it on open (the browser may ask for permission / a first tap).
+    if (handsFree) {
+      ttsEnabled = true;
+      updateSpeakLabel();
+      addStatus("ハンズフリー会話 オン — どうぞ話してください");
+      resumeHandsFreeListening();
+    }
   } else {
     const hf = $("handsfree-item");
     if (hf) hf.classList.add("hidden");
