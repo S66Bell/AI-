@@ -274,6 +274,163 @@ function saveSettings() {
   loadHistory();
 }
 
+// ── Conversation threads ────────────────────────────────────────────────
+function renderMessages(list) {
+  messagesEl.innerHTML = "";
+  for (const m of list || []) addMessage(m.role, m.text);
+  historyLoaded = true;
+  scrollToBottom();
+}
+
+async function openThreads() {
+  $("threads-overlay").classList.remove("hidden");
+  $("thread-search").value = "";
+  await loadThreadList();
+}
+function closeThreads() {
+  $("threads-overlay").classList.add("hidden");
+}
+
+async function loadThreadList() {
+  try {
+    const res = await fetch("/api/threads", { headers: authHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    renderThreadRows(data.threads || [], data.current);
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+function threadRow(opts) {
+  const row = document.createElement("div");
+  row.className = "thread-row" + (opts.current ? " current" : "");
+  const main = document.createElement("div");
+  main.className = "t-main";
+  const title = document.createElement("div");
+  title.className = "t-title";
+  title.textContent = opts.title || "新しい会話";
+  const prev = document.createElement("div");
+  prev.className = "t-preview";
+  prev.textContent = opts.preview || "";
+  main.appendChild(title);
+  main.appendChild(prev);
+  row.appendChild(main);
+  if (opts.onDelete) {
+    const del = document.createElement("button");
+    del.className = "t-del";
+    del.textContent = "🗑";
+    del.setAttribute("aria-label", "削除");
+    del.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      opts.onDelete();
+    });
+    row.appendChild(del);
+  }
+  row.addEventListener("click", opts.onOpen);
+  return row;
+}
+
+function renderThreadRows(threads, current) {
+  const list = $("thread-list");
+  list.innerHTML = "";
+  if (!threads.length) {
+    const e = document.createElement("div");
+    e.className = "thread-empty";
+    e.textContent = "会話がありません";
+    list.appendChild(e);
+    return;
+  }
+  for (const t of threads) {
+    list.appendChild(
+      threadRow({
+        title: t.title,
+        preview: t.preview,
+        current: t.id === current,
+        onOpen: () => switchThread(t.id),
+        onDelete: () => deleteThread(t.id),
+      })
+    );
+  }
+}
+
+async function switchThread(id) {
+  try {
+    const res = await fetch("/api/threads/switch", {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({ id }),
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    renderMessages(data.messages);
+    closeThreads();
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+async function newThread() {
+  try {
+    const res = await fetch("/api/threads/new", {
+      method: "POST",
+      headers: authHeaders(),
+    });
+    if (!res.ok) return;
+    renderMessages([]);
+    closeThreads();
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+async function deleteThread(id) {
+  try {
+    const res = await fetch("/api/threads/delete", {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({ id }),
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    renderMessages(data.messages); // reflect whatever thread is current now
+    await loadThreadList(); // refresh list, keep drawer open
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+async function searchThreads(q) {
+  try {
+    const res = await fetch("/api/threads/search?q=" + encodeURIComponent(q), {
+      headers: authHeaders(),
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const list = $("thread-list");
+    list.innerHTML = "";
+    const results = data.results || [];
+    if (!results.length) {
+      const e = document.createElement("div");
+      e.className = "thread-empty";
+      e.textContent = "一致する会話がありません";
+      list.appendChild(e);
+      return;
+    }
+    for (const r of results) {
+      list.appendChild(
+        threadRow({
+          title: r.title,
+          preview: r.snippet,
+          onOpen: () => switchThread(r.thread_id),
+        })
+      );
+    }
+  } catch (e) {
+    /* ignore */
+  }
+}
+
 // ── Voice: mic input, read-aloud, and hands-free conversation ───────────
 const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition = null;
@@ -488,6 +645,19 @@ document.querySelectorAll(".menu-item").forEach((btn) =>
 
 $("settings-close").addEventListener("click", closeSettings);
 $("settings-save").addEventListener("click", saveSettings);
+
+// Threads drawer
+$("threads-btn").addEventListener("click", openThreads);
+$("threads-close").addEventListener("click", closeThreads);
+$("thread-new").addEventListener("click", newThread);
+$("threads-overlay").addEventListener("click", (e) => {
+  if (e.target === $("threads-overlay")) closeThreads();
+});
+$("thread-search").addEventListener("input", (e) => {
+  const q = e.target.value.trim();
+  if (q) searchThreads(q);
+  else loadThreadList();
+});
 
 // ── PWA service worker ─────────────────────────────────────────────────
 if ("serviceWorker" in navigator) {

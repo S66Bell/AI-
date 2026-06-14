@@ -16,11 +16,14 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">
-      <img class="brand-icon" src="/static/icon.svg" alt="" />
-      <div class="brand-text">
-        <span class="brand-name" id="assistant-name">JARVIS</span>
-        <span class="brand-sub" id="backend-info">connecting…</span>
+    <div class="topbar-left">
+      <button id="threads-btn" class="icon-btn" aria-label="会話一覧">☰</button>
+      <div class="brand">
+        <img class="brand-icon" src="/static/icon.svg" alt="" />
+        <div class="brand-text">
+          <span class="brand-name" id="assistant-name">JARVIS</span>
+          <span class="brand-sub" id="backend-info">connecting…</span>
+        </div>
       </div>
     </div>
     <button id="menu-btn" class="icon-btn" aria-label="Menu">⋮</button>
@@ -34,6 +37,20 @@
       enterkeyhint="send"></textarea>
     <button id="send" class="send-btn" type="submit" aria-label="Send">↑</button>
   </form>
+
+  <!-- Conversation threads drawer -->
+  <div id="threads-overlay" class="drawer-overlay hidden">
+    <aside class="drawer" role="dialog" aria-label="会話一覧">
+      <div class="drawer-head">
+        <span>会話</span>
+        <button id="threads-close" class="icon-btn" aria-label="閉じる">✕</button>
+      </div>
+      <button id="thread-new" class="btn btn-primary drawer-new">＋ 新しい会話</button>
+      <input id="thread-search" class="text-input drawer-search" type="search"
+        placeholder="会話を検索…" />
+      <div id="thread-list" class="thread-list"></div>
+    </aside>
+  </div>
 
   <!-- Slide-down menu -->
   <div id="menu" class="menu hidden" role="menu">

@@ -13,7 +13,6 @@ from .backends import Backend, make_backend
 from .config import Config
 from .memory import Memory
 from .persona import build_system_prompt
-from .store import Store
 from .tools import ToolContext, build_registry
 
 
@@ -33,7 +32,7 @@ class Assistant:
 
         # Local + HF backends run web tools themselves; Claude uses server-side ones.
         self.registry = build_registry(config, include_web=config.uses_local_web_tools)
-        self.store = Store(config.data_dir)
+        self.store = memory.store
         self.tool_ctx = ToolContext(
             config=config, memory=memory, confirm=confirm, notify=notify, store=self.store
         )
@@ -67,3 +66,9 @@ class Assistant:
     def reset(self) -> None:
         """Drop the in-session conversation context (keeps long-term memory)."""
         self.backend.reset()
+
+    def load_context(self) -> None:
+        """Reload the model's working context from the memory's current thread.
+        Call after switching/creating a thread so the conversation continues
+        from that thread's history."""
+        self.backend.messages = self.memory.recent_messages()

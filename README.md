@@ -182,6 +182,8 @@ automatically. The window:
   Chrome/Android; read-aloud is broader.)
 - Has a `⋮` menu for read-aloud, reset, memory, reasoning toggle, clear-history,
   and settings.
+- **Conversation threads:** the `☰` drawer lists your separate conversations —
+  start a new one, switch between them, search across them, or delete.
 
 By default it binds to localhost, so it's only reachable from this PC. It's also
 an installable PWA — your browser can offer to install it as a desktop app.
@@ -219,7 +221,7 @@ jarvis/
   config.py        environment-driven configuration
   persona.py       the JARVIS personality (system prompt)
   memory.py        conversation transcript + long-term facts (on disk)
-  store.py         SQLite store for reminders / proactive follow-ups
+  store.py         SQLite store: conversation threads + reminders
   assistant.py     provider-agnostic orchestrator (persona + memory + tools)
   backends/
     base.py        the backend interface + agentic loop contract
