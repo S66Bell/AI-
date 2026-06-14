@@ -79,6 +79,11 @@ class Config:
     hf_token: str | None
     hf_model: str
     hf_base_url: str
+    # Free persistence: snapshot data_dir to a (private) HF Dataset and restore
+    # it on boot, so conversations/memory survive a Space restart without a paid
+    # persistent disk. Empty repo id disables it.
+    hf_dataset: str | None
+    hf_data_token: str | None
     # Web / PWA front-end settings.
     web_host: str
     web_port: int
@@ -165,6 +170,16 @@ class Config:
             hf_model=os.environ.get("JARVIS_HF_MODEL", "Qwen/Qwen2.5-7B-Instruct"),
             hf_base_url=os.environ.get(
                 "JARVIS_HF_BASE_URL", "https://router.huggingface.co/v1"
+            ),
+            # Free persistence via a private HF Dataset. Needs a *write* token;
+            # falls back to the inference token if a dedicated one isn't given.
+            hf_dataset=(os.environ.get("JARVIS_HF_DATASET") or None),
+            hf_data_token=(
+                os.environ.get("JARVIS_HF_DATA_TOKEN")
+                or os.environ.get("JARVIS_HF_TOKEN")
+                or os.environ.get("HF_TOKEN")
+                or os.environ.get("HUGGINGFACEHUB_API_TOKEN")
+                or None
             ),
             # Bind to localhost by default — it's a PC-local app. To reach it
             # from a phone on the same Wi-Fi, set JARVIS_WEB_HOST=0.0.0.0.
