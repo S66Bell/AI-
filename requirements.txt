@@ -9,5 +9,9 @@ requests>=2.31.0
 # Free persistence: snapshot conversations/memory to a private HF Dataset so a
 # Hugging Face Space survives restarts without a paid disk (set JARVIS_HF_DATASET).
 huggingface_hub>=0.23.0
+# Optional Google Calendar integration (set JARVIS_GCAL_CREDENTIALS). Without
+# these libs or the credentials, all calendar features are silently disabled.
+google-api-python-client>=2.0.0
+google-auth>=2.0.0
 
 # Optional voice support: pip install -r requirements-voice.txt

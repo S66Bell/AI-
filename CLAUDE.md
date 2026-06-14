@@ -18,8 +18,13 @@ tools, and a phone-friendly web app. This file orients you and defines how to
   **messages**, **reminders**. One connection guarded by a lock.
 - `jarvis/persistence.py` — optional free persistence: snapshot `jarvis.db` +
   `memory.json` to a private HF Dataset, restore on boot.
+- `jarvis/gcal.py` — optional Google Calendar client (service-account auth).
+  `CalendarClient.from_config()` returns `None` when unconfigured; degradable
+  like `persistence.py`. Shared by the calendar tools, the greeting, and
+  reminder↔calendar sync.
 - `jarvis/tools/` — `filesystem`, `shell`, `web`, `system_info`, `memory_tool`,
-  `reminders`. Registered in `tools/__init__.py:build_registry`.
+  `reminders`, `calendar` (registered only when `gcal` is configured).
+  Registered in `tools/__init__.py:build_registry`.
 - `jarvis/web/server.py` — FastAPI host + JSON streaming; single-user, one turn
   at a time behind `_turn_lock`. Static PWA in `jarvis/web/static/`.
 - `jarvis/cli.py` — terminal app. Entrypoints: `serve.py` (web), `run.py` (CLI).

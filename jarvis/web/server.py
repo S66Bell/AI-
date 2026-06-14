@@ -151,7 +151,14 @@ class JarvisServer:
             return {"message": None, "surfaced": []}
         with self._turn_lock:
             due = self.memory.store.due()
-            text = build_greeting(self.config, due)
+            # Fold today's calendar agenda into the greeting when calendar is
+            # configured. Reuse the assistant's client; today_events() already
+            # swallows any error and returns [] so the greeting never breaks.
+            events = []
+            gcal = getattr(self.assistant, "gcal", None)
+            if gcal is not None:
+                events = gcal.today_events()
+            text = build_greeting(self.config, due, events=events)
             ids = [r["id"] for r in due]
             if ids:
                 self.memory.store.mark_surfaced(ids)

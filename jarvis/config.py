@@ -89,6 +89,10 @@ class Config:
     # persistent disk. Empty repo id disables it.
     hf_dataset: str | None
     hf_data_token: str | None
+    # Google Calendar (optional). Service-account JSON key — either the inline JSON
+    # string or a path to the key file. Empty disables all calendar features.
+    gcal_credentials: str | None
+    gcal_id: str
     # Web / PWA front-end settings.
     web_host: str
     web_port: int
@@ -208,6 +212,10 @@ class Config:
                 or os.environ.get("HUGGINGFACEHUB_API_TOKEN")
                 or None
             ),
+            # Google Calendar: a service-account key (inline JSON or a file path)
+            # and the calendar id to read/write. Empty key disables calendar.
+            gcal_credentials=(os.environ.get("JARVIS_GCAL_CREDENTIALS") or None),
+            gcal_id=os.environ.get("JARVIS_GCAL_ID", "primary"),
             # Bind to localhost by default — it's a PC-local app. To reach it
             # from a phone on the same Wi-Fi, set JARVIS_WEB_HOST=0.0.0.0.
             web_host=os.environ.get("JARVIS_WEB_HOST", "127.0.0.1"),

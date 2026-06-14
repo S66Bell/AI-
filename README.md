@@ -137,6 +137,38 @@ shutdown) it saves back, debounced into at most one commit every few seconds.
 Locally you can use the same vars to back up `~/.jarvis` to the Hub. If
 `JARVIS_HF_DATASET` is unset, persistence is simply off and nothing changes.
 
+## Google Calendar (secretary mode)
+
+Mira can act as a secretary against your real Google Calendar: read today's
+agenda (it shows up in the app-open greeting), create/change/delete events from
+chat, and mirror **timed reminders** onto the calendar automatically. It uses a
+**service account**, so there's no interactive login — ideal for a Space.
+
+One-time setup:
+
+1. In **Google Cloud**, create a project and enable the **Google Calendar API**.
+2. Create a **service account**, then a **JSON key**, and download it.
+3. In **Google Calendar → Settings → Share with specific people**, add the
+   service account's email (`…@….iam.gserviceaccount.com`) with **"Make changes
+   to events"**.
+4. Copy that calendar's **ID** (Calendar settings → *Integrate calendar*).
+5. Set two secrets/vars:
+
+   | Variable | Value |
+   | --- | --- |
+   | `JARVIS_GCAL_CREDENTIALS` | the JSON key, pasted inline (or a path to the file) |
+   | `JARVIS_GCAL_ID` | the calendar id from step 4 |
+
+That's it — creating/changing/deleting events asks for confirmation first, since
+they touch your real calendar. If `JARVIS_GCAL_CREDENTIALS` is unset (or the
+Google libraries aren't installed), calendar features are simply off and nothing
+changes. Note: sync is one-way (reminders → calendar) for now — editing an event
+directly in Google won't update the matching reminder.
+
+> The service account's own `primary` calendar is an empty mailbox, so leaving
+> `JARVIS_GCAL_ID=primary` "works" but shows nothing — be sure to set it to the
+> calendar you shared in step 3.
+
 ## Configuration
 
 Everything is set via environment variables (or `.env`). See `.env.example` for
@@ -156,6 +188,8 @@ the full list. Highlights:
 | `JARVIS_TIMEZONE` | `Asia/Tokyo` | IANA timezone for every clock it shows (matters on UTC cloud hosts). |
 | `JARVIS_DATA_DIR` | `~/.jarvis` | Where memory + history live. |
 | `JARVIS_HF_DATASET` | — | Private HF Dataset repo id for free persistence (see below). |
+| `JARVIS_GCAL_CREDENTIALS` | — | Google service-account key (inline JSON or path) to enable calendar. Empty = off. |
+| `JARVIS_GCAL_ID` | `primary` | Calendar id Mira reads/writes (set to the calendar you shared — see below). |
 | `JARVIS_SHOW_THINKING` | `0` | Stream a summary of its reasoning. |
 | `JARVIS_CONFIRM_ALL_SHELL` | `0` | Confirm *every* shell command, not just risky ones. |
 | `JARVIS_VOICE` | `0` | Start in voice mode. |
