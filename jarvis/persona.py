@@ -16,14 +16,20 @@ def _is_japanese(config: Config) -> bool:
 
 
 def build_greeting(
-    config: Config, due: Sequence[Any], now: datetime | None = None
+    config: Config,
+    due: Sequence[Any],
+    now: datetime | None = None,
+    *,
+    events: Sequence[Any] = (),
 ) -> str:
     """Compose the proactive opening line shown when the app is opened.
 
     Templated in Python — no model call — so it's instant and costs nothing.
     Leads with a time-of-day greeting in Mira's dry, concise voice, then, if
-    any reminders are due, appends a compact summary. `due` rows behave like
-    dicts / `sqlite3.Row`, read via `r["text"]` / `r["due_at"]`.
+    any calendar events fall today, lists the day's agenda, and finally, if any
+    reminders are due, appends a compact summary. `due` rows behave like dicts /
+    `sqlite3.Row` (read via `r["text"]` / `r["due_at"]`); `events` are the
+    normalized dicts from `CalendarClient` (`summary`, `start`, `all_day`).
     """
 
     now = now or config.now()
@@ -45,29 +51,58 @@ def build_greeting(
     else:
         lead = f"{tod}, {user}."
 
-    if not due:
-        return lead
+    blocks: list[str] = []
 
+    # Today's calendar agenda, when the calendar is configured and has events.
+    event_rows = list(events)
+    if event_rows:
+        if japanese:
+            agenda_header = f"本日の予定が{len(event_rows)}件あります："
+        else:
+            noun = "event" if len(event_rows) == 1 else "events"
+            agenda_header = f"{len(event_rows)} {noun} today:"
+        tz = config.tz
+        agenda_items = []
+        for ev in event_rows:
+            summary = ev.get("summary") or ("(無題)" if japanese else "(no title)")
+            if ev.get("all_day"):
+                clock = "終日" if japanese else "all day"
+            else:
+                start = ev.get("start")
+                if start is not None:
+                    clock = (start.astimezone(tz) if tz else start).strftime("%H:%M")
+                else:
+                    clock = "?"
+            agenda_items.append(f"  • {summary} ({clock})")
+        blocks.append(agenda_header + "\n" + "\n".join(agenda_items))
+
+    # Due reminders, rendered exactly as before.
     rows = list(due)
-    shown = rows[:5]
-    overflow = len(rows) - len(shown)
+    if rows:
+        shown = rows[:5]
+        overflow = len(rows) - len(shown)
 
-    if japanese:
-        header = f"未対応のリマインダーが{len(rows)}件あります："
-    else:
-        noun = "reminder" if len(rows) == 1 else "reminders"
-        header = f"{len(rows)} pending {noun}:"
+        if japanese:
+            header = f"未対応のリマインダーが{len(rows)}件あります："
+        else:
+            noun = "reminder" if len(rows) == 1 else "reminders"
+            header = f"{len(rows)} pending {noun}:"
 
-    items = []
-    for r in shown:
-        text = r["text"]
-        due_at = r["due_at"]
-        items.append(f"  • {text} ({due_at})" if due_at else f"  • {text}")
+        items = []
+        for r in shown:
+            text = r["text"]
+            due_at = r["due_at"]
+            items.append(f"  • {text} ({due_at})" if due_at else f"  • {text}")
 
-    if overflow > 0:
-        items.append(f"  • …他{overflow}件" if japanese else f"  • …and {overflow} more")
+        if overflow > 0:
+            items.append(
+                f"  • …他{overflow}件" if japanese else f"  • …and {overflow} more"
+            )
+        blocks.append(header + "\n" + "\n".join(items))
 
-    return lead + "\n" + header + "\n" + "\n".join(items)
+    if not blocks:
+        return lead
+    return lead + "\n" + "\n".join(blocks)
 
 
 def build_system_prompt(config: Config, long_term_memory: str = "") -> str:

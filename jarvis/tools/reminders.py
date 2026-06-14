@@ -7,6 +7,8 @@ A later step surfaces due reminders on its own when you open the app.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from . import Tool, ToolContext
 
 
@@ -17,7 +19,24 @@ def _add(tool_input: dict, ctx: ToolContext) -> str:
     if not text:
         return "Error: nothing to remind about."
     due_at = (tool_input.get("due_at") or "").strip() or None
-    rid = ctx.store.add_reminder(text, due_at)
+
+    # Mirror timed reminders onto the calendar so they show up there too. The
+    # user already asked for the reminder, so we don't confirm; and we only sync
+    # reminders with an actual time (an undated "next session" note has nowhere
+    # sensible to land on a calendar). A calendar failure must not lose the
+    # reminder, so we degrade silently to a store-only reminder.
+    event_id: str | None = None
+    if ctx.gcal is not None and due_at:
+        try:
+            start = datetime.fromisoformat(due_at.replace("Z", "+00:00"))
+            if start.tzinfo is None and ctx.config.tz is not None:
+                start = start.replace(tzinfo=ctx.config.tz)
+            event = ctx.gcal.create_event(summary=text, start=start)
+            event_id = event.get("id")
+        except Exception:
+            event_id = None
+
+    rid = ctx.store.add_reminder(text, due_at, gcal_event_id=event_id)
     when = f" (due {due_at})" if due_at else ""
     return f"Noted reminder #{rid}{when}: {text}"
 
@@ -41,6 +60,15 @@ def _complete(tool_input: dict, ctx: ToolContext) -> str:
     query = (tool_input.get("query") or "").strip()
     if not query:
         return "Error: specify a reminder id or text to complete."
+    # Remove any mirrored calendar events for the reminders we're about to close.
+    # We collect their ids first (while still pending), then complete. delete is
+    # idempotent, so a missing event is harmless.
+    if ctx.gcal is not None:
+        for event_id in ctx.store.pop_event_ids_for(query):
+            try:
+                ctx.gcal.delete_event(event_id)
+            except Exception:
+                pass
     n = ctx.store.complete(query)
     return f"Completed {n} reminder(s)." if n else f"No pending reminder matched '{query}'."
 

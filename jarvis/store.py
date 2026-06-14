@@ -59,10 +59,18 @@ class Store:
                     created_at TEXT NOT NULL,
                     due_at     TEXT,            -- ISO time; NULL = surface next session
                     surfaced   INTEGER NOT NULL DEFAULT 0,
-                    done       INTEGER NOT NULL DEFAULT 0
+                    done       INTEGER NOT NULL DEFAULT 0,
+                    gcal_event_id TEXT           -- mirrored Google Calendar event, if any
                 );
                 """
             )
+            # Idempotent migration for databases created before calendar sync: add
+            # the gcal_event_id column if an existing reminders table lacks it.
+            cols = {r["name"] for r in self._conn.execute("PRAGMA table_info(reminders)")}
+            if "gcal_event_id" not in cols:
+                self._conn.execute(
+                    "ALTER TABLE reminders ADD COLUMN gcal_event_id TEXT"
+                )
             self._conn.commit()
 
     # ── conversation threads ───────────────────────────────────────────
@@ -211,12 +219,18 @@ class Store:
             ]
 
     # ── reminders / follow-ups ─────────────────────────────────────────
-    def add_reminder(self, text: str, due_at: str | None = None) -> int:
+    def add_reminder(
+        self,
+        text: str,
+        due_at: str | None = None,
+        gcal_event_id: str | None = None,
+    ) -> int:
         text = text.strip()
         with self._lock:
             cur = self._conn.execute(
-                "INSERT INTO reminders (text, created_at, due_at) VALUES (?, ?, ?)",
-                (text, _now(), due_at or None),
+                "INSERT INTO reminders (text, created_at, due_at, gcal_event_id) "
+                "VALUES (?, ?, ?, ?)",
+                (text, _now(), due_at or None, gcal_event_id or None),
             )
             self._conn.commit()
             return int(cur.lastrowid)
@@ -250,6 +264,26 @@ class Store:
                 "UPDATE reminders SET surfaced = 1 WHERE id = ?", [(i,) for i in ids]
             )
             self._conn.commit()
+
+    def pop_event_ids_for(self, query: str) -> list[str]:
+        """The calendar event ids of the pending reminders that `complete(query)`
+        would close. Used to delete the mirrored events before completing. The
+        matching logic mirrors `complete()` exactly so the two never diverge."""
+        query = query.strip()
+        with self._lock:
+            if query.isdigit():
+                rows = self._conn.execute(
+                    "SELECT gcal_event_id FROM reminders "
+                    "WHERE done = 0 AND id = ?",
+                    (int(query),),
+                ).fetchall()
+            else:
+                rows = self._conn.execute(
+                    "SELECT gcal_event_id FROM reminders "
+                    "WHERE done = 0 AND text LIKE ?",
+                    (f"%{query}%",),
+                ).fetchall()
+            return [r["gcal_event_id"] for r in rows if r["gcal_event_id"]]
 
     def complete(self, query: str) -> int:
         query = query.strip()

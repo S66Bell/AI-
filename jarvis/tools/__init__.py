@@ -14,6 +14,7 @@ from ..config import Config
 from ..memory import Memory
 
 if TYPE_CHECKING:
+    from ..gcal import CalendarClient
     from ..store import Store
 
 
@@ -29,6 +30,8 @@ class ToolContext:
     notify: Callable[[str], None] = lambda _msg: None
     # Structured persistence (reminders/follow-ups); may be None in minimal setups.
     store: "Store | None" = None
+    # Google Calendar client; None when calendar isn't configured.
+    gcal: "CalendarClient | None" = None
 
 
 @dataclass
@@ -67,12 +70,15 @@ class ToolRegistry:
             return f"{type(exc).__name__}: {exc}", True
 
 
-def build_registry(ctx_config: Config, *, include_web: bool = False) -> ToolRegistry:
+def build_registry(
+    ctx_config: Config, *, include_web: bool = False, gcal=None
+) -> ToolRegistry:
     """Construct the default tool set.
 
     When ``include_web`` is set, local web search/fetch tools are added. The
     Claude backend uses Anthropic's server-side web tools instead, so it omits
-    these; the local (Ollama) backend includes them.
+    these; the local (Ollama) backend includes them. When ``gcal`` is present
+    (calendar configured), the Google Calendar tools are added too.
     """
     from . import filesystem, memory_tool, reminders, shell, system_info
 
@@ -88,6 +94,10 @@ def build_registry(ctx_config: Config, *, include_web: bool = False) -> ToolRegi
         from . import web
 
         tools.extend(web.get_tools())
+    if gcal is not None:
+        from . import calendar
+
+        tools.extend(calendar.get_tools())
     for tool in tools:
         registry.register(tool)
     return registry
