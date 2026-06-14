@@ -5,6 +5,8 @@ const TOKEN_KEY = "jarvis_token";
 let token = localStorage.getItem(TOKEN_KEY) || "";
 let sending = false;
 let historyLoaded = false;
+let speechLang = "";
+let ttsEnabled = localStorage.getItem("jarvis_tts") === "1";
 
 const $ = (id) => document.getElementById(id);
 const messagesEl = $("messages");
@@ -59,6 +61,7 @@ async function loadInfo() {
     $("assistant-name").textContent = info.assistant_name;
     $("backend-info").textContent = info.backend;
     document.title = info.assistant_name;
+    speechLang = info.speech_lang || "";
   } catch (e) {
     $("backend-info").textContent = "offline — is the server running?";
   }
@@ -169,7 +172,10 @@ async function sendMessage(text) {
   } catch (e) {
     addError("Connection lost.");
   } finally {
-    if (bubble) bubble.classList.remove("streaming");
+    if (bubble) {
+      bubble.classList.remove("streaming");
+      if (ttsEnabled) speak(bubble.textContent);
+    }
     sending = false;
     $("send").disabled = false;
     scrollToBottom();
@@ -219,6 +225,9 @@ async function apiPost(path) {
 async function handleMenu(action) {
   $("menu").classList.add("hidden");
   switch (action) {
+    case "speak":
+      toggleSpeak();
+      break;
     case "reset":
       await apiPost("/api/reset");
       addStatus("conversation context cleared");
@@ -261,6 +270,83 @@ function saveSettings() {
   closeSettings();
   loadInfo();
   loadHistory();
+}
+
+// ── Voice: speech-to-text (mic) + text-to-speech (read aloud) ───────────
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+let listening = false;
+
+function updateSpeakLabel() {
+  const btn = document.querySelector('.menu-item[data-action="speak"]');
+  if (btn) btn.textContent = `音声読み上げ: ${ttsEnabled ? "オン" : "オフ"}`;
+}
+
+function toggleSpeak() {
+  ttsEnabled = !ttsEnabled;
+  localStorage.setItem("jarvis_tts", ttsEnabled ? "1" : "0");
+  if (!ttsEnabled && "speechSynthesis" in window) window.speechSynthesis.cancel();
+  updateSpeakLabel();
+  addStatus(`音声読み上げ ${ttsEnabled ? "オン" : "オフ"}`);
+}
+
+function speak(text) {
+  if (!ttsEnabled || !text || !("speechSynthesis" in window)) return;
+  try {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    if (speechLang) u.lang = speechLang;
+    window.speechSynthesis.speak(u);
+  } catch (e) {
+    /* ignore — TTS is best-effort */
+  }
+}
+
+function stopListening() {
+  listening = false;
+  $("mic").classList.remove("listening");
+  if (recognition) {
+    try { recognition.stop(); } catch (e) {}
+    recognition = null;
+  }
+}
+
+function toggleListening() {
+  if (listening) {
+    stopListening();
+    return;
+  }
+  recognition = new SpeechRec();
+  recognition.lang = speechLang || navigator.language || "en-US";
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+  recognition.onresult = (e) => {
+    const text = (e.results[0][0].transcript || "").trim();
+    if (text) {
+      input.value = text;
+      autosize();
+      $("composer").requestSubmit();
+    }
+  };
+  recognition.onerror = () => stopListening();
+  recognition.onend = () => stopListening();
+  try {
+    recognition.start();
+    listening = true;
+    $("mic").classList.add("listening");
+  } catch (e) {
+    stopListening();
+  }
+}
+
+function initVoice() {
+  updateSpeakLabel();
+  // Speech recognition isn't everywhere (e.g. iOS Safari); show the mic only
+  // when it's actually supported. Read-aloud (TTS) works without it.
+  if (SpeechRec) {
+    $("mic").classList.remove("hidden");
+    $("mic").addEventListener("click", toggleListening);
+  }
 }
 
 // ── Wiring ─────────────────────────────────────────────────────────────
@@ -309,5 +395,6 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+initVoice();
 loadInfo();
 loadHistory();
