@@ -76,6 +76,10 @@ class Config:
     confirm_all_shell: bool
     voice: bool
     max_tokens: int
+    # Sampling temperature. None lets each provider use its own default; set it
+    # (e.g. 0.3 for crisper, more deterministic answers) to override. Applied to
+    # the Ollama and HF backends.
+    temperature: float | None
     # Local-LLM (Ollama) settings.
     ollama_host: str
     ollama_model: str
@@ -84,6 +88,10 @@ class Config:
     hf_token: str | None
     hf_model: str
     hf_base_url: str
+    # Cap on tokens the HF model may generate per reply. Without it the router
+    # uses a provider default that can be tiny (truncated answers) — set a sane
+    # ceiling so replies aren't cut off, while staying under model limits.
+    hf_max_tokens: int
     # Free persistence: snapshot data_dir to a (private) HF Dataset and restore
     # it on boot, so conversations/memory survive a Space restart without a paid
     # persistent disk. Empty repo id disables it.
@@ -199,6 +207,12 @@ class Config:
             voice=_bool("JARVIS_VOICE", False),
             # Streaming is used throughout, so a generous ceiling is safe.
             max_tokens=int(os.environ.get("JARVIS_MAX_TOKENS", "16000")),
+            # Optional sampling temperature; unset means each provider's default.
+            temperature=(
+                float(os.environ["JARVIS_TEMPERATURE"])
+                if os.environ.get("JARVIS_TEMPERATURE")
+                else None
+            ),
             ollama_host=os.environ.get("JARVIS_OLLAMA_HOST", "http://localhost:11434"),
             ollama_model=os.environ.get("JARVIS_OLLAMA_MODEL", "qwen2.5:7b"),
             ollama_num_ctx=int(os.environ.get("JARVIS_OLLAMA_NUM_CTX", "8192")),
@@ -214,6 +228,7 @@ class Config:
             hf_base_url=os.environ.get(
                 "JARVIS_HF_BASE_URL", "https://router.huggingface.co/v1"
             ),
+            hf_max_tokens=int(os.environ.get("JARVIS_HF_MAX_TOKENS", "4096")),
             # Free persistence via a private HF Dataset. Needs a *write* token;
             # falls back to the inference token if a dedicated one isn't given.
             hf_dataset=(os.environ.get("JARVIS_HF_DATASET") or None),

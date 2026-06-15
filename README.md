@@ -197,6 +197,8 @@ the full list. Highlights:
 | `JARVIS_OLLAMA_HOST` | `http://localhost:11434` | Where Ollama is listening. |
 | `ANTHROPIC_API_KEY` | — | Required only when `JARVIS_PROVIDER=claude`. |
 | `JARVIS_MODEL` | `claude-opus-4-8` | Claude model (when using Claude). |
+| `JARVIS_HF_MAX_TOKENS` | `4096` | Max tokens the HF model may generate per reply (prevents truncated answers). |
+| `JARVIS_TEMPERATURE` | — | Sampling temperature for HF/Ollama; lower (e.g. `0.3`) = crisper. Empty = provider default. |
 | `JARVIS_USER_NAME` | `Yukiさん` | What it calls you. |
 | `JARVIS_NAME` | `Mira` | What you call it. |
 | `JARVIS_TIMEZONE` | `Asia/Tokyo` | IANA timezone for every clock it shows (matters on UTC cloud hosts). |

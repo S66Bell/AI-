@@ -80,7 +80,10 @@ class HFBackend(Backend):
             "model": self.model,
             "messages": [{"role": "system", "content": self.system_fn()}] + self.messages,
             "stream": True,
+            "max_tokens": self.config.hf_max_tokens,
         }
+        if self.config.temperature is not None:
+            payload["temperature"] = self.config.temperature
         if use_tools:
             payload["tools"] = self._tools()
 
