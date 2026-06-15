@@ -99,6 +99,12 @@ class Config:
     vapid_public_key: str | None
     vapid_private_key: str | None
     vapid_subject: str
+    # Web search providers (optional). With a key set we use that API — reliable
+    # from cloud hosts like a Space, where DuckDuckGo's keyless HTML endpoint is
+    # blocked. With neither, web_search falls back to keyless DuckDuckGo (works
+    # on home networks). Tavily is preferred over Brave when both are set.
+    tavily_api_key: str | None
+    brave_api_key: str | None
     # Web / PWA front-end settings.
     web_host: str
     web_port: int
@@ -229,6 +235,10 @@ class Config:
             vapid_subject=os.environ.get(
                 "JARVIS_VAPID_SUBJECT", "mailto:yuuki.s66@gmail.com"
             ),
+            # Web search API keys (optional). Either makes web_search reliable on
+            # a Space; without them we fall back to keyless DuckDuckGo.
+            tavily_api_key=(os.environ.get("JARVIS_TAVILY_API_KEY") or None),
+            brave_api_key=(os.environ.get("JARVIS_BRAVE_API_KEY") or None),
             # Bind to localhost by default — it's a PC-local app. To reach it
             # from a phone on the same Wi-Fi, set JARVIS_WEB_HOST=0.0.0.0.
             web_host=os.environ.get("JARVIS_WEB_HOST", "127.0.0.1"),
