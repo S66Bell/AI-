@@ -229,3 +229,29 @@ class HFBackend(Backend):
                     "content": result_text,
                 }
             )
+
+    # ── one-shot completion (no streaming, no tools) ───────────────────
+    def complete(self, system: str, user: str, *, max_tokens: int) -> str:
+        payload = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "stream": False,
+            "max_tokens": max_tokens,
+        }
+        if self.config.temperature is not None:
+            payload["temperature"] = self.config.temperature
+        resp = requests.post(
+            f"{self.base_url}/chat/completions",
+            json=payload,
+            headers={
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json",
+            },
+            timeout=120,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data["choices"][0]["message"].get("content") or ""

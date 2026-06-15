@@ -213,6 +213,7 @@ the full list. Highlights:
 | `JARVIS_SHOW_THINKING` | `0` | Stream a summary of its reasoning. |
 | `JARVIS_CONFIRM_ALL_SHELL` | `0` | Confirm *every* shell command, not just risky ones. |
 | `JARVIS_VOICE` | `0` | Start in voice mode. |
+| `JARVIS_AUTO_MEMORY` | `1` | Auto-learn durable facts from chats into long-term memory. `0` to disable. |
 
 ## In-session commands
 

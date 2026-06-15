@@ -21,6 +21,11 @@ from pathlib import Path
 
 from .store import Store
 
+# Soft cap on stored facts. Every fact is injected into the system prompt each
+# turn, so an unbounded file would steadily bloat the model's context. We stop
+# adding new facts past this cap (no trimming — old facts are kept as-is).
+MAX_FACTS = 200
+
 
 class Memory:
     def __init__(self, data_dir: Path, history_turns: int = 40, store: Store | None = None):
@@ -46,6 +51,35 @@ class Memory:
         facts.append(entry)
         self.facts_path.write_text(json.dumps(facts, indent=2, ensure_ascii=False))
         return f"Noted and remembered: {fact.strip()}"
+
+    @staticmethod
+    def _normalize(text: str) -> str:
+        return " ".join(text.strip().lower().split())
+
+    def remember_many(self, facts: list[str]) -> list[str]:
+        """Add each fact that isn't already known; return the newly-added ones.
+        Conservative dedupe: skip a candidate if a known fact (normalized) equals,
+        contains, or is contained by it, and skip in-batch duplicates. Stops once
+        we hold MAX_FACTS, since every fact is injected into the system prompt and
+        an unbounded file would bloat the model's context."""
+        existing_rows = self.load_facts()
+        seen = {self._normalize(f["fact"]) for f in existing_rows}
+        count = len(existing_rows)
+        added: list[str] = []
+        for raw in facts:
+            if count >= MAX_FACTS:
+                break
+            cand = raw.strip()
+            if not cand:
+                continue
+            norm = self._normalize(cand)
+            if norm in seen or any(norm in e or e in norm for e in seen):
+                continue
+            self.remember(cand)
+            seen.add(norm)
+            count += 1
+            added.append(cand)
+        return added
 
     def forget(self, query: str) -> str:
         facts = self.load_facts()
