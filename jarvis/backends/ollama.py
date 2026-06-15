@@ -113,6 +113,8 @@ class OllamaBackend(Backend):
             "stream": True,
             "options": {"num_ctx": self.config.ollama_num_ctx},
         }
+        if self.config.temperature is not None:
+            payload["options"]["temperature"] = self.config.temperature
         if use_tools:
             payload["tools"] = self._tools()
         content_parts: list[str] = []
