@@ -169,6 +169,20 @@ directly in Google won't update the matching reminder.
 > `JARVIS_GCAL_ID=primary` "works" but shows nothing — be sure to set it to the
 > calendar you shared in step 3.
 
+## Web search
+
+`web_search` works out of the box with no key via DuckDuckGo's public endpoint —
+fine on a home network. But **cloud hosts (a Hugging Face Space) are usually
+blocked** (HTTP 403), so for reliable search there set one free API key:
+
+- **Tavily** (made for AI, generous free tier): sign up at
+  [tavily.com](https://tavily.com), then set `JARVIS_TAVILY_API_KEY`.
+- **Brave Search** (free tier): get a key at
+  [brave.com/search/api](https://brave.com/search/api/), set `JARVIS_BRAVE_API_KEY`.
+
+Tavily is preferred when both are set. With neither, Mira falls back to keyless
+DuckDuckGo and tells you to add a key if that host is blocked.
+
 ## Configuration
 
 Everything is set via environment variables (or `.env`). See `.env.example` for
@@ -190,6 +204,10 @@ the full list. Highlights:
 | `JARVIS_HF_DATASET` | — | Private HF Dataset repo id for free persistence (see below). |
 | `JARVIS_GCAL_CREDENTIALS` | — | Google service-account key (inline JSON or path) to enable calendar. Empty = off. |
 | `JARVIS_GCAL_ID` | `primary` | Calendar id Mira reads/writes (set to the calendar you shared — see below). |
+| `JARVIS_TAVILY_API_KEY` | — | Tavily search key — reliable web search on a Space (free tier). Empty = keyless DuckDuckGo. |
+| `JARVIS_BRAVE_API_KEY` | — | Brave Search key — alternative to Tavily (used only if Tavily is unset). |
+| `JARVIS_VAPID_PUBLIC_KEY` | — | VAPID public key for Web Push briefings. Empty = push off. |
+| `JARVIS_VAPID_PRIVATE_KEY` | — | VAPID private key (both keys required to enable push). |
 | `JARVIS_SHOW_THINKING` | `0` | Stream a summary of its reasoning. |
 | `JARVIS_CONFIRM_ALL_SHELL` | `0` | Confirm *every* shell command, not just risky ones. |
 | `JARVIS_VOICE` | `0` | Start in voice mode. |
