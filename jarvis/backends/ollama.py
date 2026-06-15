@@ -202,3 +202,20 @@ class OllamaBackend(Backend):
             self.messages.append(
                 {"role": "tool", "tool_name": name, "content": result_text}
             )
+
+    # ── one-shot completion (no streaming, no tools) ───────────────────
+    def complete(self, system: str, user: str, *, max_tokens: int) -> str:
+        payload = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "stream": False,
+            "options": {"num_ctx": self.config.ollama_num_ctx, "num_predict": max_tokens},
+        }
+        if self.config.temperature is not None:
+            payload["options"]["temperature"] = self.config.temperature
+        resp = requests.post(f"{self.host}/api/chat", json=payload, timeout=120)
+        resp.raise_for_status()
+        return (resp.json().get("message") or {}).get("content", "") or ""

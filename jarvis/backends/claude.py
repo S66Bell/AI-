@@ -113,6 +113,27 @@ class ClaudeBackend(Backend):
     def _collect_text(response) -> str:
         return "".join(b.text for b in response.content if b.type == "text").strip()
 
+    # ── one-shot completion (no streaming, no tools, no thinking) ──────
+    def complete(self, system: str, user: str, *, max_tokens: int) -> str:
+        kwargs = dict(
+            model=self.config.model,
+            max_tokens=max_tokens,
+            system=system,
+            messages=[{"role": "user", "content": user}],
+        )
+        # Mirror _stream()'s refusal fallback so reflection works on Fable too.
+        if self._is_fable():
+            resp = self.client.beta.messages.create(
+                betas=[_FALLBACK_BETA],
+                fallbacks=[{"model": _FALLBACK_MODEL}],
+                **kwargs,
+            )
+        else:
+            resp = self.client.messages.create(**kwargs)
+        return "".join(
+            b.text for b in resp.content if getattr(b, "type", None) == "text"
+        )
+
     @staticmethod
     def _refusal_text(response) -> str:
         category = None

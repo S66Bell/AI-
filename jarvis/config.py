@@ -120,6 +120,9 @@ class Config:
     # Proactive opening message on app open (time-of-day greeting + due
     # reminders). Templated, display-only; off means a silent app.
     greeting: bool
+    # Automatically learn durable facts from conversations (post-turn extraction).
+    # On by default; degradable — any failure is silently ignored.
+    auto_memory: bool
 
     @property
     def tz(self) -> ZoneInfo | None:
@@ -260,4 +263,5 @@ class Config:
             web_port=int(os.environ.get("JARVIS_WEB_PORT", "8765")),
             web_token=(os.environ.get("JARVIS_WEB_TOKEN") or None),
             greeting=_bool("JARVIS_GREETING", True),
+            auto_memory=_bool("JARVIS_AUTO_MEMORY", True),
         )

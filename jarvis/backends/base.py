@@ -46,5 +46,11 @@ class Backend(ABC):
     def run_turn(self, user_input: str) -> str:
         """Process one user turn end-to-end and return the final reply text."""
 
+    @abstractmethod
+    def complete(self, system: str, user: str, *, max_tokens: int) -> str:
+        """One-shot, non-streaming completion with no tools. Used for side tasks
+        (e.g. memory extraction) that must NOT touch self.messages or the agentic
+        loop. Returns the raw assistant text."""
+
     def reset(self) -> None:
         self.messages = []

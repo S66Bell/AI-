@@ -14,6 +14,7 @@ from .config import Config
 from .gcal import CalendarClient
 from .memory import Memory
 from .persona import build_system_prompt
+from .reflect import reflect, _worth_reflecting
 from .tools import ToolContext, build_registry
 
 
@@ -72,7 +73,20 @@ class Assistant:
         self.memory.append_turn("user", user_input)
         reply = self.backend.run_turn(user_input)
         self.memory.append_turn("assistant", reply)
+        self._auto_remember(user_input, reply)
         return reply
+
+    def _auto_remember(self, user_input: str, reply: str) -> None:
+        """Post-turn reflection: learn durable facts in the background. Optional
+        and fully degradable — guarded so it can never break the turn."""
+        if not self.config.auto_memory:
+            return
+        if not _worth_reflecting(user_input):
+            return
+        try:
+            reflect(self.backend, self.memory, user_input, reply)
+        except Exception:
+            pass
 
     def reset(self) -> None:
         """Drop the in-session conversation context (keeps long-term memory)."""
