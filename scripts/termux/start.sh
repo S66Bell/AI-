@@ -5,6 +5,14 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
+# Cloud brain (Groq / Claude): no local model server needed.
+PROVIDER="${JARVIS_PROVIDER:-$(grep -E '^JARVIS_PROVIDER=' .env 2>/dev/null | tail -n 1 | cut -d= -f2 | tr -d ' \r')}"
+if [ "$PROVIDER" = "groq" ] || [ "$PROVIDER" = "claude" ]; then
+  echo "==> Brain: $PROVIDER (cloud). Starting the web UI only."
+  command -v termux-wake-lock >/dev/null 2>&1 && termux-wake-lock || true
+  exec python -m jarvis web
+fi
+
 MODEL_PATH="${JARVIS_MODEL_PATH:-$(cat .jarvis-model-path 2>/dev/null || true)}"
 if [ -z "$MODEL_PATH" ] || [ ! -f "$MODEL_PATH" ]; then
   echo "No model found. Run  bash scripts/termux/setup.sh  first (or set JARVIS_MODEL_PATH)."

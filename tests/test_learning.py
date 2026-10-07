@@ -72,3 +72,33 @@ def test_cancel_endpoint(config):
         assert requests.post(srv.url + "/api/chat/cancel").json()["ok"] is False  # nothing running
     finally:
         srv.close()
+
+
+def test_groq_preset(monkeypatch, tmp_path):
+    for k in ("JARVIS_OPENAI_BASE_URL", "JARVIS_OPENAI_MODEL", "JARVIS_OPENAI_API_KEY"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("JARVIS_PROVIDER", "groq")
+    monkeypatch.setenv("JARVIS_GROQ_API_KEY", "gsk_test")
+    monkeypatch.setenv("JARVIS_DATA_DIR", str(tmp_path))
+    from jarvis.config import Config
+
+    c = Config.load()
+    assert c.is_openai_compat and c.is_local and c.is_cloud
+    assert c.openai_base_url == "https://api.groq.com/openai/v1"
+    assert c.openai_model == "llama-3.3-70b-versatile"
+    assert c.openai_api_key == "gsk_test"
+    assert c.learn_idle_seconds == 5
+
+
+def test_groq_without_key_explains(monkeypatch, tmp_path):
+    monkeypatch.setenv("JARVIS_PROVIDER", "groq")
+    monkeypatch.delenv("JARVIS_GROQ_API_KEY", raising=False)
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.setenv("JARVIS_DATA_DIR", str(tmp_path))
+    from jarvis.config import Config
+    from jarvis.web.server import JarvisWeb
+
+    app = JarvisWeb(Config.load())
+    assert app.ensure_assistant() is None
+    assert "API キー" in app.backend_error
+    app.scheduler.stop()

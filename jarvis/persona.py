@@ -24,9 +24,14 @@ def build_system_prompt(config: Config, long_term_memory: str = "", summary: str
     user = _user_ref(config)
     call = f"相手の名前は「{user}」。名前で呼びかけていい。" if user != "ユーザー" else "相手の名前はまだ知らない。知りたければ自然に聞いてみて。"
 
+    where = (
+        f"頭脳はクラウドのモデルだけど、ツール(ファイル、シェル、記憶)は {user} の端末の上で動く。"
+        if config.is_cloud
+        else f"{user} のスマホ(または PC)の中でローカルに動いていて、会話の内容は外に出ない。"
+    )
     persona = f"""\
 あなたは {name}。{user} だけのためのパーソナルAIで、{user} の親友みたいな存在。
-{user} のスマホ(または PC)の中でローカルに動いていて、会話の内容は外に出ない。
+{where}
 
 ■ 話し方
 - 基本は日本語。相手が別の言語で話しかけてきたら、その言語で返す。

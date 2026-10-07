@@ -111,6 +111,15 @@ python -m jarvis web          # http://localhost:8765
 Set `JARVIS_WEB_HOST=0.0.0.0` and `JARVIS_WEB_TOKEN=<secret>` to reach it from
 other devices on your network.
 
+## Cloud brain (Groq, free tier)
+
+```bash
+bash scripts/brain.sh groq gsk_your_key      # key from console.groq.com
+```
+
+Replies in a second or two; tools (shell, files, web, memory) keep running on
+your own device. Switch back with `bash scripts/brain.sh local`.
+
 ## Other model servers
 
 `JARVIS_PROVIDER=llamacpp` talks to any OpenAI-compatible endpoint, so the same

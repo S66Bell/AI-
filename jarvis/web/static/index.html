@@ -239,7 +239,8 @@ async function loadState() {
   try {
     const s = await api('/api/state');
     const short = String(s.model).split('/').pop().replace(/\.gguf$/i, '');
-    $('#model').textContent = (s.provider === 'claude' ? 'Claude · ' : 'local · ') + short;
+    const label = {claude: 'Claude', groq: 'Groq'}[s.provider] || 'local';
+    $('#model').textContent = label + ' · ' + short;
     $('#dot').className = 'orb ' + (s.ready ? (s.busy ? 'busy' : 'ok') : 'err');
     if (!s.ready && s.error) addError(s.error);
     document.title = s.name;

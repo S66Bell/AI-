@@ -89,6 +89,25 @@ URL は `http://127.0.0.1:8765` でも試してみてください。
   されます。
 - **記憶** JARVIS が覚えている事実の一覧。追加・削除ができます。
 
+## 頭脳だけクラウド(Groq)にする
+
+スマホ内のモデルが遅いときは、頭脳だけを Groq の無料枠に切り替えられます。
+返事は 1〜2 秒。ツール(検索、ファイル、シェル、記憶)はこれまで通りスマホ上で
+動きます。会話内容は Groq のサーバーに送られ、ネット接続が必要になります。
+
+1. <https://console.groq.com> で無料アカウントを作り、「API Keys」でキーを発行
+   (`gsk_` で始まる文字列。クレジットカード不要)
+2. Termux で切り替える
+
+```bash
+bash scripts/brain.sh groq gsk_あなたのキー
+bash scripts/termux/start.sh
+```
+
+ローカルに戻すときは `bash scripts/brain.sh local`。モデルは既定で
+`llama-3.3-70b-versatile`(賢い、1 日 1,000 回まで)。もっと多く使うなら
+`bash scripts/brain.sh groq gsk_... llama-3.1-8b-instant`(速い、1 日 14,400 回)。
+
 ## 他の端末から使う
 
 同じ Wi-Fi の PC やタブレットからも使えます。`.env` を次のように変え、

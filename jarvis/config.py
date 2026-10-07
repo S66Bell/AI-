@@ -31,6 +31,7 @@ class Config:
 
     # Which brain drives JARVIS:
     #   "llamacpp" — llama.cpp's llama-server (or any OpenAI-compatible API)
+    #   "groq"     — Groq's free cloud API (OpenAI-compatible, very fast)
     #   "ollama"   — Ollama
     #   "claude"   — Anthropic's Claude API
     provider: str
@@ -70,12 +71,19 @@ class Config:
 
     @property
     def is_openai_compat(self) -> bool:
-        return self.provider in ("llamacpp", "openai", "lmstudio", "local")
+        return self.provider in ("llamacpp", "openai", "lmstudio", "local", "groq")
 
     @property
     def is_local(self) -> bool:
-        """True for any non-Claude brain (runs on hardware you control)."""
+        """True for every brain except Claude: tools run here and the local
+        web tools are used. (Groq is a cloud brain, but the tools still run
+        on this device, so it is treated like a local backend.)"""
         return self.provider != "claude"
+
+    @property
+    def is_cloud(self) -> bool:
+        """The model itself runs on someone else's servers."""
+        return self.provider in ("groq", "claude")
 
     @property
     def active_model(self) -> str:
@@ -93,8 +101,19 @@ class Config:
         ).expanduser()
         data_dir.mkdir(parents=True, exist_ok=True)
 
+        provider = os.environ.get("JARVIS_PROVIDER", "ollama").strip().lower()
+        if provider == "groq":
+            # Preset: Groq's OpenAI-compatible endpoint. Only the key is needed.
+            openai_base_url = os.environ.get("JARVIS_OPENAI_BASE_URL", "https://api.groq.com/openai/v1")
+            openai_model = os.environ.get("JARVIS_GROQ_MODEL", "llama-3.3-70b-versatile")
+            openai_api_key = os.environ.get("JARVIS_GROQ_API_KEY") or os.environ.get("GROQ_API_KEY", "")
+        else:
+            openai_base_url = os.environ.get("JARVIS_OPENAI_BASE_URL", "http://127.0.0.1:8080/v1")
+            openai_model = os.environ.get("JARVIS_OPENAI_MODEL", "local")
+            openai_api_key = os.environ.get("JARVIS_OPENAI_API_KEY", "no-key")
+
         return cls(
-            provider=os.environ.get("JARVIS_PROVIDER", "ollama").strip().lower(),
+            provider=provider,
             api_key=os.environ.get("ANTHROPIC_API_KEY"),
             model=os.environ.get("JARVIS_MODEL", "claude-opus-4-8"),
             effort=os.environ.get("JARVIS_EFFORT", "high"),
@@ -109,11 +128,9 @@ class Config:
             ollama_host=os.environ.get("JARVIS_OLLAMA_HOST", "http://localhost:11434"),
             ollama_model=os.environ.get("JARVIS_OLLAMA_MODEL", "qwen2.5:7b"),
             ollama_num_ctx=int(os.environ.get("JARVIS_OLLAMA_NUM_CTX", "8192")),
-            openai_base_url=os.environ.get(
-                "JARVIS_OPENAI_BASE_URL", "http://127.0.0.1:8080/v1"
-            ).rstrip("/"),
-            openai_model=os.environ.get("JARVIS_OPENAI_MODEL", "local"),
-            openai_api_key=os.environ.get("JARVIS_OPENAI_API_KEY", "no-key"),
+            openai_base_url=openai_base_url.rstrip("/"),
+            openai_model=openai_model,
+            openai_api_key=openai_api_key,
             web_host=os.environ.get("JARVIS_WEB_HOST", "127.0.0.1"),
             web_port=int(os.environ.get("JARVIS_WEB_PORT", "8765")),
             web_token=os.environ.get("JARVIS_WEB_TOKEN", "").strip(),
@@ -122,6 +139,9 @@ class Config:
             agent_self_check=_bool("JARVIS_AGENT_SELF_CHECK", True),
             reflect_enabled=_bool("JARVIS_LEARN", True),
             reflect_every=int(os.environ.get("JARVIS_LEARN_EVERY", "6")),
-            learn_idle_seconds=float(os.environ.get("JARVIS_LEARN_IDLE", "180")),
+            # A cloud brain isn't slowed down by background learning.
+            learn_idle_seconds=float(
+                os.environ.get("JARVIS_LEARN_IDLE", "5" if provider in ("groq", "claude") else "180")
+            ),
             history_turns=int(os.environ.get("JARVIS_HISTORY_TURNS", "16")),
         )

@@ -40,10 +40,23 @@ class OpenAICompatBackend(Backend):
 
     # ── readiness ──────────────────────────────────────────────────────
     def _check_ready(self) -> None:
+        if self.config.provider == "groq" and not self.config.openai_api_key:
+            raise OpenAICompatError(
+                "Groq の API キーが設定されていません。console.groq.com で無料キーを作って\n"
+                "  bash scripts/brain.sh groq gsk_あなたのキー   を実行してね。"
+            )
         try:
-            resp = requests.get(f"{self.base_url}/models", headers=self._headers, timeout=5)
+            resp = requests.get(f"{self.base_url}/models", headers=self._headers, timeout=15)
+            if resp.status_code in (401, 403):
+                raise OpenAICompatError("API キーが拒否されました(401)。キーを確認してね。")
             resp.raise_for_status()
+        except OpenAICompatError:
+            raise
         except requests.RequestException as exc:
+            if self.config.is_cloud:
+                raise OpenAICompatError(
+                    f"{self.base_url} に接続できません。ネット接続を確認してね。(エラー: {exc})"
+                ) from exc
             raise OpenAICompatError(
                 f"Can't reach the model server at {self.base_url}.\n"
                 f"  • On Android/Termux: run  scripts/termux/start.sh  (starts llama-server)\n"
@@ -56,7 +69,7 @@ class OpenAICompatBackend(Backend):
             ids = []
         # llama-server reports the model file path as the id; if the user left
         # the default name, adopt whatever the server is actually serving.
-        if ids and self.model == "local":
+        if ids and self.model == "local" and not self.config.is_cloud:
             self.model = ids[0]
 
     # ── tool schema ────────────────────────────────────────────────────
@@ -101,6 +114,9 @@ class OpenAICompatBackend(Backend):
                 detail = exc.response.text[:500]
             except Exception:  # pragma: no cover - best effort only
                 pass
+            status = getattr(exc.response, "status_code", None)
+            if status == 429:
+                raise OpenAICompatError("無料枠の上限に当たったみたい。少し待ってからもう一度送ってね。") from exc
             raise OpenAICompatError(f"Model server error: {exc} {detail}") from exc
         except requests.RequestException as exc:
             raise OpenAICompatError(f"Model request failed: {exc}") from exc
