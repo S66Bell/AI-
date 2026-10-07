@@ -30,7 +30,7 @@ class Memory:
         # into the rolling summary (see learning.py).
         self.summary_after = summary_after
 
-    # ── Long-term facts ──────────────────────────────────────────────────────
+    # ── Long-term facts ────────────────────────────────────────────────
     def load_facts(self) -> list[dict]:
         if not self.facts_path.exists():
             return []
@@ -71,7 +71,7 @@ class Memory:
                 return True
         return False
 
-    # ── Rolling summary of older conversation ──────────────────────────────────
+    # ── Rolling summary of older conversation ──────────────────────────
     def load_summary(self) -> str:
         try:
             return self.summary_path.read_text(encoding="utf-8").strip()
@@ -87,7 +87,7 @@ class Memory:
             return ""
         return "\n".join(f"- {f['fact']}" for f in facts)
 
-    # ── Conversation transcript ────────────────────────────────────────────────
+    # ── Conversation transcript ────────────────────────────────────────
     def append_turn(self, role: str, text: str) -> None:
         """Append one visible turn (role is 'user' or 'assistant')."""
         if not text.strip():
