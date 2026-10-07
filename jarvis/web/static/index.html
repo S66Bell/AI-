@@ -183,7 +183,8 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
 async function loadState() {
   try {
     const s = await api('/api/state');
-    $('#model').textContent = (s.provider === 'claude' ? 'Claude · ' : 'local · ') + s.model;
+    const short = String(s.model).split('/').pop().replace(/\.gguf$/i, '');
+    $('#model').textContent = (s.provider === 'claude' ? 'Claude · ' : 'local · ') + short;
     $('#dot').className = 'dot ' + (s.ready ? (s.busy ? 'busy' : 'ok') : 'err');
     if (!s.ready && s.error) addError(s.error);
     document.title = s.name;
@@ -215,6 +216,11 @@ async function sendMessage() {
   addMsg('user', text);
   let bot = null, buf = '', thinkEl = null;
   const ensureBot = () => { if (!bot) { bot = addMsg('bot', ''); } return bot; };
+  // "thinking…" indicator with elapsed time, until the first byte arrives
+  const wait = document.createElement('div'); wait.className = 'status wait'; chat.appendChild(wait); scrollDown();
+  const t0 = Date.now();
+  const waitTimer = setInterval(() => { wait.textContent = `考え中… ${Math.round((Date.now() - t0) / 1000)}秒`; }, 500);
+  const stopWait = () => { clearInterval(waitTimer); wait.remove(); };
   try {
     const r = await fetch('/api/chat', {method: 'POST', headers: Object.assign({'Content-Type': 'application/json'}, headers()), body: JSON.stringify({message: text})});
     if (r.status === 401) { askToken(); return; }
@@ -229,6 +235,7 @@ async function sendMessage() {
         for (const line of raw.split('\n')) { if (line.startsWith('event:')) ev = line.slice(6).trim(); else if (line.startsWith('data:')) data += line.slice(5).trim(); }
         if (!data) continue;
         let payload; try { payload = JSON.parse(data); } catch (e) { continue; }
+        if (ev === 'text' || ev === 'error' || ev === 'done') stopWait();
         if (ev === 'text') { buf += payload; ensureBot().querySelector('.md').innerHTML = md(buf); scrollDown(); }
         else if (ev === 'thinking') { if (!thinkEl) { thinkEl = document.createElement('div'); thinkEl.className = 'thinking'; ensureBot().prepend(thinkEl); } thinkEl.textContent += payload; scrollDown(); }
         else if (ev === 'status') addStatus(payload);
@@ -238,7 +245,7 @@ async function sendMessage() {
       }
     }
   } catch (e) { addError('通信エラー: ' + e.message); }
-  finally { sending = false; send.disabled = false; loadState(); }
+  finally { stopWait(); sending = false; send.disabled = false; loadState(); }
 }
 send.onclick = sendMessage;
 input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && window.matchMedia('(min-width: 700px)').matches) { e.preventDefault(); sendMessage(); } });
