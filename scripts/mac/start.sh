@@ -6,7 +6,12 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 PY="./.venv/bin/python"; [ -x "$PY" ] || PY="python3"
 
-PROVIDER="${JARVIS_PROVIDER:-$(grep -E '^JARVIS_PROVIDER=' .env 2>/dev/null | tail -n 1 | cut -d= -f2 | tr -d ' \r')}"
+if [ ! -f .env ]; then
+  echo "No .env yet. Run  bash scripts/mac/setup.sh  first."
+  exit 1
+fi
+env_get() { grep -E "^$1=" .env 2>/dev/null | tail -n 1 | cut -d= -f2- | tr -d ' \r' || true; }
+PROVIDER="${JARVIS_PROVIDER:-$(env_get JARVIS_PROVIDER)}"
 if [ "$PROVIDER" = "groq" ] || [ "$PROVIDER" = "claude" ]; then
   echo "==> Brain: $PROVIDER (cloud). Starting the web UI only."
   exec caffeinate -i -s "$PY" -m jarvis web
@@ -46,8 +51,8 @@ else
 fi
 
 IP="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo "<このMacのIP>")"
-TOKEN="$(grep -E '^JARVIS_WEB_TOKEN=' .env 2>/dev/null | tail -n 1 | cut -d= -f2)"
-PORT_WEB="$(grep -E '^JARVIS_WEB_PORT=' .env 2>/dev/null | tail -n 1 | cut -d= -f2)"
+TOKEN="$(env_get JARVIS_WEB_TOKEN)"
+PORT_WEB="$(env_get JARVIS_WEB_PORT)"
 echo "==> Starting MIRA web UI"
 echo "    this Mac:   http://localhost:${PORT_WEB:-8765}/"
 echo "    phone:      http://$IP:${PORT_WEB:-8765}/   token: ${TOKEN:-(none)}"

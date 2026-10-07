@@ -6,7 +6,8 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 # Cloud brain (Groq / Claude): no local model server needed.
-PROVIDER="${JARVIS_PROVIDER:-$(grep -E '^JARVIS_PROVIDER=' .env 2>/dev/null | tail -n 1 | cut -d= -f2 | tr -d ' \r')}"
+env_get() { grep -E "^$1=" .env 2>/dev/null | tail -n 1 | cut -d= -f2- | tr -d ' \r' || true; }
+PROVIDER="${JARVIS_PROVIDER:-$(env_get JARVIS_PROVIDER)}"
 if [ "$PROVIDER" = "groq" ] || [ "$PROVIDER" = "claude" ]; then
   echo "==> Brain: $PROVIDER (cloud). Starting the web UI only."
   command -v termux-wake-lock >/dev/null 2>&1 && termux-wake-lock || true

@@ -56,7 +56,7 @@ echo "$MODELS/$FILE" > "$ROOT/.jarvis-model-path"
 
 if [ ! -f "$ROOT/.env" ]; then
   echo "==> Writing .env"
-  TOKEN="$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom | head -c 24)"
+  TOKEN="$("$ROOT/.venv/bin/python" -c 'import secrets; print(secrets.token_hex(12))')"
   cat > "$ROOT/.env" <<ENV
 JARVIS_PROVIDER=llamacpp
 JARVIS_OPENAI_BASE_URL=http://127.0.0.1:8080/v1
