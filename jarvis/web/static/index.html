@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#0b1220">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>JARVIS</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<style>
+:root{
+  --bg:#0b1220;--panel:#121b2e;--panel2:#182440;--line:#243352;--text:#e6edf7;--muted:#8da2c0;
+  --accent:#4cc9f0;--accent2:#1f8fb3;--user:#1d3a5c;--ok:#3ddc97;--warn:#ffb347;--err:#ff6b6b;
+  --sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans JP",sans-serif;-webkit-text-size-adjust:100%}
+body{display:flex;flex-direction:column;overflow:hidden}
+header{padding:calc(8px + var(--sat)) 14px 8px;background:var(--panel);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+header .name{font-weight:700;letter-spacing:.08em;color:var(--accent)}
+header .model{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+header .dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+header .dot.ok{background:var(--ok)} header .dot.err{background:var(--err)} header .dot.busy{background:var(--warn)}
+nav{display:flex;background:var(--panel);border-bottom:1px solid var(--line)}
+nav button{flex:1;background:none;border:0;color:var(--muted);padding:10px 4px;font-size:14px;border-bottom:2px solid transparent}
+nav button.active{color:var(--accent);border-bottom-color:var(--accent)}
+main{flex:1;min-height:0;position:relative}
+.view{position:absolute;inset:0;display:none;flex-direction:column}
+.view.active{display:flex}
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 12px 8px}
+/* chat */
+.msg{max-width:88%;margin:6px 0;padding:10px 12px;border-radius:14px;white-space:pre-wrap;word-break:break-word}
+.msg.user{margin-left:auto;background:var(--user);border-bottom-right-radius:4px}
+.msg.bot{margin-right:auto;background:var(--panel2);border-bottom-left-radius:4px}
+.msg.bot .md pre{background:#0a0f1a;padding:8px;border-radius:8px;overflow-x:auto;font-size:13px;white-space:pre}
+.msg.bot .md code{background:#0a0f1a;padding:1px 4px;border-radius:4px;font-size:13px}
+.msg.bot .md ul{margin:4px 0;padding-left:20px}
+.msg .thinking{color:var(--muted);font-style:italic;font-size:13px}
+.status{color:var(--muted);font-size:12px;margin:2px 0 2px 8px}
+.status::before{content:"· "}
+.errline{color:var(--err);font-size:13px;margin:4px 8px}
+.composer{display:flex;gap:8px;align-items:flex-end;padding:8px 10px calc(8px + var(--sab));background:var(--panel);border-top:1px solid var(--line)}
+textarea{flex:1;resize:none;border:1px solid var(--line);border-radius:14px;background:var(--bg);color:var(--text);padding:10px 12px;font:inherit;max-height:140px;min-height:42px}
+.btn{border:0;border-radius:12px;padding:10px 14px;font:inherit;font-weight:600;background:var(--accent);color:#06202b}
+.btn.sec{background:var(--panel2);color:var(--text)}
+.btn.icon{width:42px;height:42px;padding:0;display:flex;align-items:center;justify-content:center;font-size:18px}
+.btn:disabled{opacity:.5}
+.btn.rec{background:var(--err);color:#fff}
+/* forms / cards */
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0}
+.card .title{font-weight:600;word-break:break-word}
+.card .meta{font-size:12px;color:var(--muted);margin-top:2px}
+.card .actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.card .actions .btn{padding:6px 10px;font-size:13px}
+.badge{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:var(--line);color:var(--text);margin-right:6px;vertical-align:middle}
+.badge.running{background:var(--warn);color:#2a1800} .badge.done{background:var(--ok);color:#05301c}
+.badge.failed,.badge.cancelled{background:var(--err);color:#fff}
+.form{padding:10px 12px;background:var(--panel);border-top:1px solid var(--line);padding-bottom:calc(10px + var(--sab))}
+.form .row{display:flex;gap:8px;margin-top:8px;align-items:center}
+.form input,.form select{flex:1;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text);padding:8px 10px;font:inherit;min-width:0}
+.form textarea{width:100%;max-height:120px}
+.result{background:#0a0f1a;border-radius:8px;padding:8px;margin-top:8px;white-space:pre-wrap;word-break:break-word;font-size:14px}
+.log{font-size:12px;color:var(--muted);margin-top:6px;max-height:40vh;overflow:auto;white-space:pre-wrap;word-break:break-word}
+.log .text{color:var(--text)} .log .status::before,.log .error::before{content:"· "} .log .error{color:var(--err)}
+.empty{color:var(--muted);text-align:center;padding:30px 10px}
+.hint{font-size:12px;color:var(--muted);margin:4px 0 0}
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:20px;z-index:10}
+.modal.show{display:flex}
+.modal .box{background:var(--panel);border:1px solid var(--warn);border-radius:14px;padding:16px;max-width:460px;width:100%}
+.modal pre{white-space:pre-wrap;word-break:break-word;background:#0a0f1a;padding:8px;border-radius:8px;font-size:13px}
+.toggle{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center}
+</style>
+</head>
+<body>
+<header>
+  <span class="name">JARVIS</span>
+  <span class="model" id="model">connecting…</span>
+  <span class="dot" id="dot"></span>
+</header>
+<nav>
+  <button data-view="chat" class="active">チャット</button>
+  <button data-view="tasks">タスク</button>
+  <button data-view="schedules">定期実行</button>
+  <button data-view="memory">記憶</button>
+</nav>
+<main>
+  <!-- chat -->
+  <section class="view active" id="view-chat">
+    <div class="scroll" id="chat"></div>
+    <div class="composer">
+      <button class="btn icon sec" id="mic" title="音声入力">🎤</button>
+      <textarea id="input" rows="1" placeholder="メッセージ" enterkeyhint="send"></textarea>
+      <button class="btn icon" id="send" title="送信">➤</button>
+    </div>
+  </section>
+  <!-- tasks -->
+  <section class="view" id="view-tasks">
+    <div class="scroll" id="tasks"><div class="empty">タスクはまだありません</div></div>
+    <div class="form">
+      <textarea id="taskGoal" rows="2" placeholder="JARVISに任せる仕事(例: 今週のAI関連ニュースを3つ調べて要約して)"></textarea>
+      <div class="row"><button class="btn" id="taskStart">バックグラウンドで実行</button></div>
+      <p class="hint">JARVISが自分でツールを使って最後まで進め、結果を報告します。</p>
+    </div>
+  </section>
+  <!-- schedules -->
+  <section class="view" id="view-schedules">
+    <div class="scroll" id="schedules"><div class="empty">定期タスクはありません</div></div>
+    <div class="form">
+      <textarea id="schedGoal" rows="2" placeholder="定期的にやってほしいこと"></textarea>
+      <div class="row">
+        <select id="schedKind"><option value="daily">毎日 指定時刻</option><option value="every">N分ごと</option></select>
+        <input id="schedTime" type="time" value="08:00">
+        <input id="schedEvery" type="number" min="1" value="60" style="display:none" placeholder="分">
+        <button class="btn" id="schedAdd">追加</button>
+      </div>
+      <p class="hint">JARVISが起動している間だけ動きます。寝ていた間の分は起動後に1回まとめて実行されます。</p>
+    </div>
+  </section>
+  <!-- memory -->
+  <section class="view" id="view-memory">
+    <div class="scroll" id="memory"><div class="empty">まだ何も覚えていません</div></div>
+    <div class="form">
+      <div class="row"><input id="factInput" placeholder="覚えておいてほしいこと"><button class="btn" id="factAdd">記憶</button></div>
+      <div class="row">
+        <label class="toggle"><input type="checkbox" id="tts"> 返事を読み上げる</label>
+        <span style="flex:1"></span>
+        <button class="btn sec" id="resetCtx">会話をリセット</button>
+      </div>
+    </div>
+  </section>
+</main>
+<div class="modal" id="confirmModal">
+  <div class="box">
+    <div style="font-weight:600;color:var(--warn)">確認が必要です</div>
+    <pre id="confirmText"></pre>
+    <div class="card actions" style="display:flex;gap:8px;justify-content:flex-end;background:none;border:0;padding:0">
+      <button class="btn sec" id="confirmNo">やめる</button>
+      <button class="btn" id="confirmYes">実行する</button>
+    </div>
+  </div>
+</div>
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let token = localStorage.getItem('jarvis_token') || '';
+const headers = () => token ? {'Authorization': 'Bearer ' + token} : {};
+async function api(path, opts = {}) {
+  const o = Object.assign({headers: Object.assign({'Content-Type': 'application/json'}, headers())}, opts);
+  if (o.body && typeof o.body !== 'string') o.body = JSON.stringify(o.body);
+  const r = await fetch(path, o);
+  if (r.status === 401) { askToken(); throw new Error('token required'); }
+  return r.json();
+}
+function askToken() {
+  const t = prompt('アクセストークンを入力してください (JARVIS_WEB_TOKEN)');
+  if (t) { token = t.trim(); localStorage.setItem('jarvis_token', token); location.reload(); }
+}
+// ── markdown-lite ─────────────────────────────────────────────
+function md(src) {
+  const blocks = []; let s = String(src);
+  s = s.replace(/```(\w*)\n([\s\S]*?)```/g, (_, l, c) => { blocks.push('<pre>' + esc(c) + '</pre>'); return '\u0000' + (blocks.length - 1) + '\u0000'; });
+  s = esc(s);
+  s = s.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  s = s.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent)">$1</a>');
+  s = s.replace(/(^|\n)((?:[-*] .*(?:\n|$))+)/g, (_, p, list) => p + '<ul>' + list.trim().split('\n').map(l => '<li>' + l.replace(/^[-*] /, '') + '</li>').join('') + '</ul>');
+  s = s.replace(/\u0000(\d+)\u0000/g, (_, i) => blocks[i]);
+  return s;
+}
+// ── tabs ─────────────────────────────────────────────────────
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('active', x === b));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + b.dataset.view));
+  ({tasks: loadTasks, schedules: loadSchedules, memory: loadMemory}[b.dataset.view] || (() => {}))();
+});
+// ── state ────────────────────────────────────────────────────
+async function loadState() {
+  try {
+    const s = await api('/api/state');
+    $('#model').textContent = (s.provider === 'claude' ? 'Claude · ' : 'local · ') + s.model;
+    $('#dot').className = 'dot ' + (s.ready ? (s.busy ? 'busy' : 'ok') : 'err');
+    if (!s.ready && s.error) addError(s.error);
+    document.title = s.name;
+    $('header .name').textContent = s.name;
+  } catch (e) { $('#dot').className = 'dot err'; }
+}
+// ── chat ─────────────────────────────────────────────────────
+const chat = $('#chat'), input = $('#input'), send = $('#send');
+const scrollDown = () => { chat.scrollTop = chat.scrollHeight; };
+function addMsg(role, text) {
+  const d = document.createElement('div'); d.className = 'msg ' + role;
+  if (role === 'bot') { d.innerHTML = '<div class="md">' + md(text) + '</div>'; } else d.textContent = text;
+  chat.appendChild(d); scrollDown(); return d;
+}
+function addStatus(text) { const d = document.createElement('div'); d.className = 'status'; d.textContent = text; chat.appendChild(d); scrollDown(); }
+function addError(text) { const d = document.createElement('div'); d.className = 'errline'; d.textContent = text; chat.appendChild(d); scrollDown(); }
+async function loadHistory() {
+  try {
+    const h = await api('/api/history?limit=60');
+    chat.innerHTML = '';
+    for (const r of h.rows) addMsg(r.role === 'user' ? 'user' : 'bot', r.text);
+  } catch (e) {}
+}
+let sending = false;
+async function sendMessage() {
+  const text = input.value.trim();
+  if (!text || sending) return;
+  sending = true; send.disabled = true; input.value = ''; autoGrow();
+  addMsg('user', text);
+  let bot = null, buf = '', thinkEl = null;
+  const ensureBot = () => { if (!bot) { bot = addMsg('bot', ''); } return bot; };
+  try {
+    const r = await fetch('/api/chat', {method: 'POST', headers: Object.assign({'Content-Type': 'application/json'}, headers()), body: JSON.stringify({message: text})});
+    if (r.status === 401) { askToken(); return; }
+    const reader = r.body.getReader(), dec = new TextDecoder(); let pending = '';
+    while (true) {
+      const {value, done} = await reader.read(); if (done) break;
+      pending += dec.decode(value, {stream: true});
+      let i;
+      while ((i = pending.indexOf('\n\n')) >= 0) {
+        const raw = pending.slice(0, i); pending = pending.slice(i + 2);
+        let ev = 'message', data = '';
+        for (const line of raw.split('\n')) { if (line.startsWith('event:')) ev = line.slice(6).trim(); else if (line.startsWith('data:')) data += line.slice(5).trim(); }
+        if (!data) continue;
+        let payload; try { payload = JSON.parse(data); } catch (e) { continue; }
+        if (ev === 'text') { buf += payload; ensureBot().querySelector('.md').innerHTML = md(buf); scrollDown(); }
+        else if (ev === 'thinking') { if (!thinkEl) { thinkEl = document.createElement('div'); thinkEl.className = 'thinking'; ensureBot().prepend(thinkEl); } thinkEl.textContent += payload; scrollDown(); }
+        else if (ev === 'status') addStatus(payload);
+        else if (ev === 'confirm') showConfirm(payload);
+        else if (ev === 'error') addError(payload);
+        else if (ev === 'done') { if (payload.reply && !buf) { ensureBot().querySelector('.md').innerHTML = md(payload.reply); buf = payload.reply; } if ($('#tts').checked && buf) speak(buf); }
+      }
+    }
+  } catch (e) { addError('通信エラー: ' + e.message); }
+  finally { sending = false; send.disabled = false; loadState(); }
+}
+send.onclick = sendMessage;
+input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && window.matchMedia('(min-width: 700px)').matches) { e.preventDefault(); sendMessage(); } });
+function autoGrow() { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 140) + 'px'; }
+input.addEventListener('input', autoGrow);
+// confirm modal
+function showConfirm(p) {
+  $('#confirmText').textContent = p.question; $('#confirmModal').classList.add('show');
+  const answer = ok => { $('#confirmModal').classList.remove('show'); api('/api/confirm', {method: 'POST', body: {id: p.id, approved: ok}}); };
+  $('#confirmYes').onclick = () => answer(true); $('#confirmNo').onclick = () => answer(false);
+}
+// voice
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const mic = $('#mic');
+if (!SR) mic.style.display = 'none';
+else {
+  let rec = null;
+  mic.onclick = () => {
+    if (rec) { rec.stop(); return; }
+    rec = new SR(); rec.lang = navigator.language || 'ja-JP'; rec.interimResults = true;
+    mic.classList.add('rec');
+    rec.onresult = e => { let t = ''; for (const r of e.results) t += r[0].transcript; input.value = t; autoGrow(); };
+    rec.onend = () => { mic.classList.remove('rec'); rec = null; if (input.value.trim()) sendMessage(); };
+    rec.onerror = () => { mic.classList.remove('rec'); rec = null; };
+    rec.start();
+  };
+}
+function speak(text) {
+  if (!window.speechSynthesis) return;
+  const u = new SpeechSynthesisUtterance(text.replace(/```[\s\S]*?```/g, '').slice(0, 1500));
+  u.lang = /[぀-ヿ一-鿿]/.test(text) ? 'ja-JP' : 'en-US';
+  speechSynthesis.cancel(); speechSynthesis.speak(u);
+}
+$('#tts').checked = localStorage.getItem('jarvis_tts') === '1';
+$('#tts').onchange = e => localStorage.setItem('jarvis_tts', e.target.checked ? '1' : '0');
+// ── tasks ────────────────────────────────────────────────────
+const tasksEl = $('#tasks'); const openTasks = new Set();
+function taskCard(t) {
+  const c = document.createElement('div'); c.className = 'card'; c.dataset.id = t.id;
+  c.innerHTML = `<div class="title"><span class="badge ${t.status}">${t.status}</span>${esc(t.goal)}</div>
+    <div class="meta">${esc(t.created.replace('T', ' '))} · ${t.steps} steps · ${esc(t.source)}</div>
+    <div class="detail"></div>
+    <div class="actions">
+      <button class="btn sec" data-act="open">${openTasks.has(t.id) ? '閉じる' : '詳細'}</button>
+      ${['queued','running'].includes(t.status) ? '<button class="btn sec" data-act="cancel">中止</button>' : ''}
+    </div>`;
+  c.querySelector('[data-act=open]').onclick = () => { openTasks.has(t.id) ? openTasks.delete(t.id) : openTasks.add(t.id); loadTasks(); };
+  const cancel = c.querySelector('[data-act=cancel]'); if (cancel) cancel.onclick = async () => { await api(`/api/tasks/${t.id}/cancel`, {method: 'POST'}); loadTasks(); };
+  if (openTasks.has(t.id)) fillTaskDetail(c, t.id);
+  return c;
+}
+async function fillTaskDetail(card, id) {
+  const {task} = await api('/api/tasks/' + id);
+  const d = card.querySelector('.detail'); let html = '';
+  if (task.result) html += '<div class="result">' + md(task.result) + '</div>';
+  if (task.error) html += '<div class="errline">' + esc(task.error) + '</div>';
+  html += '<div class="log">' + task.log.map(e => `<div class="${e.kind}">${esc(e.text)}</div>`).join('') + '</div>';
+  d.innerHTML = html;
+}
+async function loadTasks() {
+  const {tasks} = await api('/api/tasks?limit=50');
+  tasksEl.innerHTML = '';
+  if (!tasks.length) { tasksEl.innerHTML = '<div class="empty">タスクはまだありません</div>'; return; }
+  for (const t of tasks) tasksEl.appendChild(taskCard(t));
+}
+$('#taskStart').onclick = async () => {
+  const goal = $('#taskGoal').value.trim(); if (!goal) return;
+  const r = await api('/api/tasks', {method: 'POST', body: {goal}});
+  if (r.error) return alert(r.error);
+  $('#taskGoal').value = ''; openTasks.add(r.task.id); loadTasks();
+};
+// live updates
+function connectEvents() {
+  const es = new EventSource('/api/events' + (token ? '?token=' + encodeURIComponent(token) : ''));
+  let timer = null;
+  es.addEventListener('task', () => { if ($('#view-tasks').classList.contains('active')) { clearTimeout(timer); timer = setTimeout(loadTasks, 400); } });
+  es.onerror = () => { es.close(); setTimeout(connectEvents, 5000); };
+}
+// ── schedules ────────────────────────────────────────────────
+$('#schedKind').onchange = e => { const daily = e.target.value === 'daily'; $('#schedTime').style.display = daily ? '' : 'none'; $('#schedEvery').style.display = daily ? 'none' : ''; };
+async function loadSchedules() {
+  const {schedules} = await api('/api/schedules'); const el = $('#schedules'); el.innerHTML = '';
+  if (!schedules.length) { el.innerHTML = '<div class="empty">定期タスクはありません</div>'; return; }
+  for (const s of schedules) {
+    const c = document.createElement('div'); c.className = 'card';
+    c.innerHTML = `<div class="title"><span class="badge ${s.enabled ? 'done' : ''}">${s.enabled ? 'on' : 'off'}</span>${esc(s.goal)}</div>
+      <div class="meta">${esc(s.describe)} · 次回 ${esc((s.next_run || '-').replace('T', ' '))}${s.last_run ? ' · 前回 ' + esc(s.last_run.replace('T', ' ')) : ''}</div>
+      <div class="actions"><button class="btn sec" data-act="run">今すぐ実行</button><button class="btn sec" data-act="toggle">${s.enabled ? '停止' : '再開'}</button><button class="btn sec" data-act="del">削除</button></div>`;
+    c.querySelector('[data-act=run]').onclick = async () => { await api(`/api/schedules/${s.id}/run`, {method: 'POST'}); alert('タスクを開始しました'); };
+    c.querySelector('[data-act=toggle]').onclick = async () => { await api(`/api/schedules/${s.id}/toggle`, {method: 'POST'}); loadSchedules(); };
+    c.querySelector('[data-act=del]').onclick = async () => { if (confirm('削除しますか?')) { await api(`/api/schedules/${s.id}`, {method: 'DELETE'}); loadSchedules(); } };
+    el.appendChild(c);
+  }
+}
+$('#schedAdd').onclick = async () => {
+  const goal = $('#schedGoal').value.trim(); if (!goal) return;
+  const body = {goal};
+  if ($('#schedKind').value === 'daily') body.daily_at = $('#schedTime').value; else body.every_minutes = parseInt($('#schedEvery').value, 10);
+  const r = await api('/api/schedules', {method: 'POST', body});
+  if (r.error) return alert(r.error);
+  $('#schedGoal').value = ''; loadSchedules();
+};
+// ── memory ───────────────────────────────────────────────────
+async function loadMemory() {
+  const {facts} = await api('/api/memory'); const el = $('#memory'); el.innerHTML = '';
+  if (!facts.length) { el.innerHTML = '<div class="empty">まだ何も覚えていません</div>'; return; }
+  for (const f of facts) {
+    const c = document.createElement('div'); c.className = 'card';
+    c.innerHTML = `<div class="title">${esc(f.fact)}</div><div class="meta">${esc((f.added || '').replace('T', ' '))}</div><div class="actions"><button class="btn sec">忘れる</button></div>`;
+    c.querySelector('button').onclick = async () => { await api('/api/memory/forget', {method: 'POST', body: {query: f.fact}}); loadMemory(); };
+    el.appendChild(c);
+  }
+}
+$('#factAdd').onclick = async () => { const fact = $('#factInput').value.trim(); if (!fact) return; await api('/api/memory', {method: 'POST', body: {fact}}); $('#factInput').value = ''; loadMemory(); };
+$('#resetCtx').onclick = async () => { if (confirm('会話の文脈をリセットしますか?(記憶は残ります)')) { await api('/api/reset', {method: 'POST'}); addStatus('会話をリセットしました'); } };
+// ── boot ─────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+loadState(); loadHistory(); connectEvents();
+setInterval(loadState, 30000);
+})();
+</script>
+</body>
+</html>

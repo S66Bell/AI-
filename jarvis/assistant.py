@@ -26,12 +26,19 @@ class Assistant:
         confirm: Callable[[str], bool],
         notify: Callable[[str], None] = lambda _m: None,
         on_thinking: Callable[[str], None] | None = None,
+        runner=None,
     ):
         self.config = config
         self.memory = memory
 
         # The local backend needs its own web tools; Claude uses server-side ones.
         self.registry = build_registry(config, include_web=config.is_local)
+        # With a TaskRunner attached, JARVIS can hand long jobs to itself.
+        if runner is not None:
+            from .agent import get_tools as agent_tools
+
+            for tool in agent_tools(runner):
+                self.registry.register(tool)
         self.tool_ctx = ToolContext(
             config=config, memory=memory, confirm=confirm, notify=notify
         )

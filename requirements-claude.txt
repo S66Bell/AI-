@@ -1,0 +1,2 @@
+# Only needed when JARVIS_PROVIDER=claude
+anthropic>=0.69.0

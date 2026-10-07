@@ -39,8 +39,15 @@ class Backend(ABC):
         self.emit = emit
         self.notify = notify
         self.on_thinking = on_thinking
+        # How many tool round-trips one turn may take. Agent tasks raise this.
+        self.max_tool_iterations = MAX_TOOL_ITERATIONS
+        # Optional hook polled between model calls; return True to stop early.
+        self.should_stop: Callable[[], bool] | None = None
         # Seed from saved (text-only) history so a fresh session has continuity.
         self.messages: list[dict] = memory.recent_messages()
+
+    def cancelled(self) -> bool:
+        return bool(self.should_stop and self.should_stop())
 
     @abstractmethod
     def run_turn(self, user_input: str) -> str:

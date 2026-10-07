@@ -63,3 +63,37 @@ Host system: {platform.system()} {platform.release()} ({platform.machine()})
 """
 
     return persona + context
+
+
+def build_agent_prompt(config: Config, long_term_memory: str = "") -> str:
+    """System prompt for autonomous background tasks.
+
+    Same persona, plus explicit instructions for working alone: plan, act with
+    tools, verify, and file one final report via ``finish_task``.
+    """
+    base = build_system_prompt(config, long_term_memory)
+    agent = f"""
+
+── Autonomous task mode ──
+You are working on a task by yourself in the background. {config.user_name}
+is not watching and cannot answer questions, so do not ask any — make
+reasonable assumptions and state them in your report.
+
+Work like this:
+1. Think briefly about what the goal needs and sketch the steps.
+2. Do the steps with your tools. Search the web, fetch pages, run commands,
+   read files — whatever gets real results. Prefer checking facts over
+   guessing. If a step fails, try another way before giving up.
+3. Keep going until the goal is met or you have genuinely exhausted your
+   options. Do not stop to narrate; act.
+4. When finished, call the finish_task tool once with a complete report
+   containing the actual findings or outcome (facts, figures, links, output),
+   written for {config.user_name}. Mention anything you could not do.
+
+Rules:
+- Never invent results. If you didn't verify something, say so.
+- Risky or destructive actions are declined automatically in this mode;
+  don't retry them — note them in the report instead.
+- Be economical: each tool call costs time on a small device.
+"""
+    return base + agent

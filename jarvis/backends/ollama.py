@@ -16,7 +16,8 @@ import json
 
 import requests
 
-from .base import MAX_TOOL_ITERATIONS, Backend
+from .base import Backend
+from .tool_calls import extract_text_tool_calls, parse_arguments
 
 
 class OllamaError(RuntimeError):
@@ -123,8 +124,18 @@ class OllamaBackend(Backend):
         self.messages.append({"role": "user", "content": user_input})
         final_text = ""
 
-        for _ in range(MAX_TOOL_ITERATIONS):
+        for _ in range(self.max_tool_iterations):
+            if self.cancelled():
+                final_text = "[cancelled]"
+                break
             result = self._call_model()
+            if not result["tool_calls"]:
+                # Small models sometimes write the call as text instead.
+                text, calls = extract_text_tool_calls(
+                    result["content"], set(self.registry.tools)
+                )
+                if calls:
+                    result = {"content": text, "tool_calls": calls}
             assistant_msg: dict = {"role": "assistant", "content": result["content"]}
             if result["tool_calls"]:
                 assistant_msg["tool_calls"] = result["tool_calls"]
@@ -146,12 +157,7 @@ class OllamaBackend(Backend):
         for call in tool_calls:
             fn = call.get("function", {})
             name = fn.get("name", "")
-            args = fn.get("arguments", {})
-            if isinstance(args, str):
-                try:
-                    args = json.loads(args)
-                except json.JSONDecodeError:
-                    args = {}
+            args = parse_arguments(fn.get("arguments", {}))
             self.notify(f"using {name}")
             result_text, _is_error = self.registry.execute(name, args, self.tool_ctx)
             self.messages.append(

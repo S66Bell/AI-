@@ -101,6 +101,21 @@ class Memory:
             messages.pop(0)
         return messages
 
+    def recent_rows(self, limit: int = 60) -> list[dict]:
+        """Raw recent transcript rows (role, text, ts) for display in a UI."""
+        if not self.history_path.exists():
+            return []
+        rows: list[dict] = []
+        try:
+            with self.history_path.open(encoding="utf-8") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if line:
+                        rows.append(json.loads(line))
+        except (json.JSONDecodeError, OSError):
+            return []
+        return rows[-limit:]
+
     def clear_history(self) -> str:
         if self.history_path.exists():
             self.history_path.unlink()

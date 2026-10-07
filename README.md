@@ -1,15 +1,45 @@
 # JARVIS — your own independent AI
 
 A fully self-hosted, JARVIS-style AI assistant. It runs a **free, local language
-model on your own machine** — no API keys, no usage fees, no calls to Claude or
-OpenAI — and once the model is downloaded it works **completely offline**. It
-has a persistent personality, long-term memory, real tools (shell, files, web),
-and optional voice.
+model on your own device** — a PC, or an Android phone — with no API keys, no
+usage fees, and no calls to Claude or OpenAI. Once the model is downloaded it
+works **completely offline**. It has a persistent personality, long-term memory,
+real tools (shell, files, web), autonomous background tasks, scheduled jobs,
+a phone-friendly web app, and optional voice.
 
 It's also pluggable: if you ever want a more powerful brain, flip one setting to
 use the Claude API instead. The default is local and free.
 
 > "Sometimes you gotta run before you can walk." — JARVIS does the running.
+
+## Run it on your phone (Android)
+
+JARVIS runs entirely on an Android phone inside [Termux](https://f-droid.org/packages/com.termux/),
+using llama.cpp for the model and a small web app as the interface:
+
+```bash
+pkg install -y git && git clone https://github.com/s66bell/AI-.git jarvis && cd jarvis
+bash scripts/termux/setup.sh     # installs llama.cpp, downloads a ~2GB model
+bash scripts/termux/start.sh     # then open http://localhost:8765 in Chrome
+```
+
+Add the page to your home screen and it behaves like an app. Full guide (in
+Japanese): [docs/ANDROID.md](docs/ANDROID.md).
+
+## Agent mode
+
+Beyond chat, JARVIS can work on its own:
+
+- **Background tasks** — hand it a goal ("find this week's top AI papers and
+  summarise them"). It plans, uses tools as many times as needed, runs a
+  self-check against the goal, and files a report. From chat, JARVIS can
+  delegate to itself with `start_background_task`.
+- **Schedules** — run a goal daily at a set time or every N minutes. Runs
+  missed while the device slept happen once on wake-up.
+- **Live progress** — the web UI streams each step; tasks can be cancelled.
+
+Risky actions (destructive shell commands) are confirmed with you in chat and
+declined automatically in background tasks unless `JARVIS_AGENT_ALLOW_DANGEROUS=1`.
 
 ## What it can do
 
@@ -25,7 +55,7 @@ use the Claude API instead. The default is local and free.
 - **Run entirely on your hardware** with an open model — independent and private.
 - **Talk, optionally**, with voice in and out.
 
-## Quick start (free, local — recommended)
+## Quick start on a PC (free, local)
 
 **1. Install [Ollama](https://ollama.com/download)** (the local model runtime),
 then pull a model. For ~16GB RAM, `qwen2.5:7b` is a great tool-using model:
@@ -68,10 +98,25 @@ Set your choice in `.env` via `JARVIS_OLLAMA_MODEL`. Models that support tool
 calling (the Qwen2.5 and Llama 3.1/3.2 families) work best, since JARVIS relies
 on tools to get things done.
 
+## Web UI on a PC
+
+```bash
+python -m jarvis web          # http://localhost:8765
+```
+
+Set `JARVIS_WEB_HOST=0.0.0.0` and `JARVIS_WEB_TOKEN=<secret>` to reach it from
+other devices on your network.
+
+## Other model servers
+
+`JARVIS_PROVIDER=llamacpp` talks to any OpenAI-compatible endpoint, so the same
+setup works with llama.cpp's `llama-server`, LM Studio, vLLM, or Hugging Face
+TGI — point `JARVIS_OPENAI_BASE_URL` at it.
+
 ## Using Claude instead (optional, paid)
 
-If you want a more capable brain, set `JARVIS_PROVIDER=claude` and add your
-`ANTHROPIC_API_KEY` in `.env`. Everything else — persona, memory, tools, UI —
+If you want a more capable brain, set `JARVIS_PROVIDER=claude`, run
+`pip install -r requirements-claude.txt`, and add your `ANTHROPIC_API_KEY` in `.env`. Everything else — persona, memory, tools, UI —
 stays identical. On `claude-fable-5`, JARVIS automatically opts into a
 server-side fallback so a safety refusal is re-served rather than failing.
 
@@ -128,27 +173,35 @@ jarvis/
   persona.py       the JARVIS personality (system prompt)
   memory.py        conversation transcript + long-term facts (on disk)
   assistant.py     provider-agnostic orchestrator (persona + memory + tools)
+  agent.py         background task runner: plan → act → self-check → report
+  scheduler.py     recurring tasks (daily at HH:MM / every N minutes)
   backends/
     base.py        the backend interface + agentic loop contract
-    ollama.py      local LLM via Ollama  ← the independent, free brain
+    openai_compat.py  llama.cpp / any OpenAI-compatible server  ← phone brain
+    ollama.py      local LLM via Ollama
     claude.py      Claude API (optional)
+    tool_calls.py  repairs the tool calls small models emit (JSON / text)
   tools/           shell, files, system, memory, and (local) web tools
+  web/             dependency-free HTTP server + the PWA (static/)
   voice/           optional speech-to-text / text-to-speech
   cli.py           the interactive terminal interface
+scripts/termux/    Android setup / start / stop
+docs/ANDROID.md    phone guide (Japanese)
+tests/             pytest suite with a fake OpenAI-compatible model server
 ```
 
 The **backend** owns the conversation with the model and runs the agentic loop:
 stream the reply, let the model call tools, run them locally (gating destructive
 actions behind your confirmation), feed the results back, and repeat until the
-task is done. The local Ollama backend and the Claude backend implement the same
-interface, so the persona, memory, tools, and UI are written once and work with
-either brain.
+task is done. The llama.cpp, Ollama and Claude backends implement the same
+interface, so the persona, memory, tools, agent runner and UIs are written once
+and work with any brain.
 
 ## Why it's "independent"
 
 A frontier model like Claude or GPT can't be trained from scratch for free —
 that takes millions of dollars of compute. But you don't need to: JARVIS runs an
-**open-weight model** (Qwen, Llama, Mistral, …) locally via Ollama. The weights
+**open-weight model** (Qwen, Llama, Mistral, …) locally via llama.cpp or Ollama. The weights
 live on your disk, the conversation never leaves your machine, and after the
 one-time model download it needs no internet and no third-party service. That's
 a genuinely independent, private, zero-cost AI you fully own.

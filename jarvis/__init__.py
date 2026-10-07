@@ -1,3 +1,3 @@
-"""JARVIS — a fully personal, JARVIS-style AI assistant powered by Claude."""
+"""JARVIS — a fully personal, JARVIS-style AI assistant that runs on your own device."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

@@ -37,10 +37,14 @@ def make_backend(
         notify=notify,
         on_thinking=on_thinking,
     )
-    if config.is_local:
+    if config.provider == "ollama":
         from .ollama import OllamaBackend
 
         return OllamaBackend(**kwargs)
+    if config.is_openai_compat:
+        from .openai_compat import OpenAICompatBackend
+
+        return OpenAICompatBackend(**kwargs)
 
     from .claude import ClaudeBackend
 

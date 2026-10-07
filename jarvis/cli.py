@@ -125,7 +125,8 @@ class CLI:
     def _banner(self) -> None:
         name = self.config.assistant_name
         if self.config.is_local:
-            backend_desc = f"local · {self.config.active_model} (offline-capable)"
+            model = getattr(self.assistant.backend, "model", self.config.active_model)
+            backend_desc = f"local · {model} (offline-capable)"
         else:
             backend_desc = f"Claude · {self.config.active_model} · effort: {self.config.effort}"
         title = Text(f"{name} online.", style="bold cyan")
