@@ -9,7 +9,8 @@ echo "ram: $(awk '/MemTotal/ {printf "%d MB total", $2/1024}' /proc/meminfo), $(
 echo
 echo "--- cpu"
 echo "  features: $(grep -m1 Features /proc/cpuinfo | sed 's/Features\s*: //' | tr ' ' '\n' | grep -E '^(asimddp|i8mm|sve|sve2|asimd|fphp)$' | tr '\n' ' ')"
-echo "  llama.cpp build: $(grep -m1 'system_info' "$HOME/.jarvis/llama-server.log" 2>/dev/null | grep -oE '(NEON|DOTPROD|MATMUL_INT8|SVE|FMA|FP16_VA|KLEIDIAI) = [01]' | tr '\n' ' ')"
+echo "  llama.cpp build: $(grep -iE 'system.?info' "$HOME/.jarvis/llama-server.log" 2>/dev/null | grep -oE '(NEON|DOTPROD|MATMUL_INT8|SVE|FMA|FP16_VA|KLEIDIAI) = [01]' | sort -u | tr '\n' ' ')"
+[ -x "$HOME/llama.cpp/build/bin/llama-server" ] && echo "  native build: present ($HOME/llama.cpp/build/bin/llama-server)" || echo "  native build: not built yet (bash scripts/termux/build-llama.sh)"
 echo
 echo "--- tools"
 for t in python pip curl git llama-server termux-wake-lock; do
