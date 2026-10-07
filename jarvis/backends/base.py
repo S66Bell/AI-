@@ -43,11 +43,20 @@ class Backend(ABC):
         self.max_tool_iterations = MAX_TOOL_ITERATIONS
         # Optional hook polled between model calls; return True to stop early.
         self.should_stop: Callable[[], bool] | None = None
+        # Optional diagnostics sink (one line per model call).
+        self.debug_log: Callable[[str], None] | None = None
         # Seed from saved (text-only) history so a fresh session has continuity.
         self.messages: list[dict] = memory.recent_messages()
 
     def cancelled(self) -> bool:
         return bool(self.should_stop and self.should_stop())
+
+    def _debug(self, msg: str) -> None:
+        if self.debug_log is not None:
+            try:
+                self.debug_log(msg)
+            except Exception:
+                pass
 
     def cancel(self) -> None:
         """Abort an in-flight model request, if the backend supports it."""

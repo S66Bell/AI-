@@ -121,7 +121,7 @@ class Config:
             agent_allow_dangerous=_bool("JARVIS_AGENT_ALLOW_DANGEROUS", False),
             agent_self_check=_bool("JARVIS_AGENT_SELF_CHECK", True),
             reflect_enabled=_bool("JARVIS_LEARN", True),
-            reflect_every=int(os.environ.get("JARVIS_LEARN_EVERY", "3")),
-            learn_idle_seconds=float(os.environ.get("JARVIS_LEARN_IDLE", "90")),
+            reflect_every=int(os.environ.get("JARVIS_LEARN_EVERY", "6")),
+            learn_idle_seconds=float(os.environ.get("JARVIS_LEARN_IDLE", "180")),
             history_turns=int(os.environ.get("JARVIS_HISTORY_TURNS", "16")),
         )

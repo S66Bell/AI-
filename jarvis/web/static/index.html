@@ -184,6 +184,7 @@ textarea::placeholder{color:var(--muted)}
         <span style="flex:1"></span>
         <button class="btn sec" id="learnNow">今の会話から学習</button>
         <button class="btn sec" id="resetCtx">会話をリセット</button>
+        <button class="btn sec" id="clearHist">履歴を全部消す</button>
       </div>
     </div>
   </section>
@@ -321,6 +322,7 @@ async function sendMessage() {
         else if (ev === 'status') addStatus(payload);
         else if (ev === 'confirm') showConfirm(payload);
         else if (ev === 'error') addError(payload);
+        else if (ev === 'done' && !payload.reply && !buf) { addError('モデルから空の返事が返ってきた。もう一度送ってみて(続くようなら doctor.sh のログを見てね)'); }
         else if (ev === 'done') { if (payload.reply && !buf) { ensureBot().querySelector('.md').innerHTML = md(payload.reply); buf = payload.reply; } if ($('#tts').checked && buf) speak(buf); }
       }
     }
@@ -445,6 +447,7 @@ async function loadMemory() {
 }
 $('#factAdd').onclick = async () => { const fact = $('#factInput').value.trim(); if (!fact) return; await api('/api/memory', {method: 'POST', body: {fact}}); $('#factInput').value = ''; loadMemory(); };
 $('#learnNow').onclick = async () => { await api('/api/learn', {method: 'POST'}); alert('バックグラウンドで整理中。少ししたら「記憶」を開き直してね'); };
+$('#clearHist').onclick = async () => { if (confirm('保存された会話履歴をすべて消しますか?(記憶した事実は残ります)')) { await api('/api/clear-history', {method: 'POST'}); chat.innerHTML = '<div class="empty"><div class="orb"></div>なんでも話しかけてね</div>'; addStatus('履歴を消したよ'); } };
 $('#resetCtx').onclick = async () => { if (confirm('会話の文脈をリセットしますか?(記憶は残ります)')) { await api('/api/reset', {method: 'POST'}); addStatus('会話をリセットしました'); } };
 // ── boot ─────────────────────────────────────────────────────
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});

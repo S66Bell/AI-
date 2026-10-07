@@ -73,6 +73,8 @@ class Learner:
         self._queue: "queue.Queue[str]" = queue.Queue()
         self._backend = None
         self._lock = threading.Lock()
+        self._current_job: str | None = None
+        self._interrupted = False
         self.last_result: dict = {}
         self._thread = threading.Thread(target=self._loop, name="mira-learner", daemon=True)
         self._thread.start()
@@ -93,6 +95,15 @@ class Learner:
     def request(self, job: str) -> None:
         self._queue.put(job)
 
+    def yield_to_chat(self) -> None:
+        """Called when a chat turn starts: abort any running learning job and
+        put it back in the queue, so the user never waits behind it."""
+        self._last_turn = time.monotonic()
+        backend = self._backend
+        if backend is not None and self._current_job:
+            self._interrupted = True
+            backend.cancel()
+
     # ── model access ───────────────────────────────────────────────────
     def _ask(self, system: str, prompt: str) -> str:
         with self._lock:
@@ -107,7 +118,11 @@ class Learner:
             )
             backend.messages = []
             backend.max_tool_iterations = 1
-            return backend.run_turn(prompt)
+            self._backend = backend
+            try:
+                return backend.run_turn(prompt)
+            finally:
+                self._backend = None
 
     # ── jobs ───────────────────────────────────────────────────────────
     def _wait_for_idle(self) -> None:
@@ -118,13 +133,21 @@ class Learner:
         while True:
             job = self._queue.get()
             self._wait_for_idle()
+            self._current_job = job
+            self._interrupted = False
             try:
                 if job == "reflect":
                     self.reflect()
                 elif job == "summarise":
                     self.summarise()
             except Exception as exc:  # learning must never break the chat
-                self.log(f"learning {job} failed: {type(exc).__name__}: {exc}")
+                if self._interrupted:
+                    self.log(f"learning {job} paused for a chat turn; will retry")
+                    self._queue.put(job)
+                else:
+                    self.log(f"learning {job} failed: {type(exc).__name__}: {exc}")
+            finally:
+                self._current_job = None
 
     def reflect(self) -> list[str]:
         rows = self.memory.recent_rows(self.every * 2 + 4)

@@ -14,6 +14,7 @@ plain text (which still works, just less reliably).
 from __future__ import annotations
 
 import json
+import time
 
 import requests
 
@@ -105,6 +106,10 @@ class OpenAICompatBackend(Backend):
             raise OpenAICompatError(f"Model request failed: {exc}") from exc
 
         content_parts: list[str] = []
+        reasoning_parts: list[str] = []
+        finish_reason = None
+        started = time.monotonic()
+        prompt_chars = sum(len(str(m.get("content") or "")) for m in payload["messages"])
         # index -> partial call being assembled from streamed fragments
         partial: dict[int, dict] = {}
         self._active_resp = resp
@@ -128,10 +133,14 @@ class OpenAICompatBackend(Backend):
                     raise OpenAICompatError(err.get("message", str(err)) if isinstance(err, dict) else str(err))
 
                 for choice in chunk.get("choices") or []:
+                    if choice.get("finish_reason"):
+                        finish_reason = choice["finish_reason"]
                     delta = choice.get("delta") or {}
                     reasoning = delta.get("reasoning_content") or delta.get("reasoning")
-                    if reasoning and self.on_thinking is not None:
-                        self.on_thinking(reasoning)
+                    if reasoning:
+                        reasoning_parts.append(reasoning)
+                        if self.on_thinking is not None:
+                            self.on_thinking(reasoning)
                     text = delta.get("content")
                     if text:
                         content_parts.append(text)
@@ -160,6 +169,16 @@ class OpenAICompatBackend(Backend):
         content = "".join(content_parts)
         if not tool_calls:
             content, tool_calls = extract_text_tool_calls(content, set(self.registry.tools))
+        reasoning = "".join(reasoning_parts)
+        if not content.strip() and not tool_calls and reasoning.strip():
+            # Some servers route the whole answer into reasoning_content.
+            content = reasoning.strip()
+            self.emit(content)
+        self._debug(
+            f"model call: {time.monotonic() - started:.1f}s, prompt≈{prompt_chars} chars, "
+            f"content={len(content)} chars, reasoning={len(reasoning)} chars, "
+            f"tool_calls={[c['function']['name'] for c in tool_calls]}, finish={finish_reason}"
+        )
         return {"content": content, "tool_calls": tool_calls}
 
     # ── main turn loop ─────────────────────────────────────────────────
@@ -191,6 +210,8 @@ class OpenAICompatBackend(Backend):
 
             if not calls:
                 final_text = (result["content"] or "").strip()
+                if not final_text:
+                    self._debug("model returned an empty reply")
                 break
 
             self._run_tools(calls)
