@@ -117,6 +117,18 @@ grep -E "prompt eval time|eval time" ~/.jarvis/llama-server.log | tail -n 6
   `JARVIS_THREADS=4` や `=8` を試す、ケースを外す、3B モデルに切り替える。
 - `eval time` の tokens per second が 3 未満 → モデルが大きすぎます。3B に。
 
+### まず純粋な速度を測る
+
+```bash
+bash scripts/termux/bench.sh
+```
+
+MIRA を介さずにモデルの素の速度(読み込み pp / 生成 tg、トークン/秒)を、
+パッケージ版と最適化ビルドの両方、スレッド数 2/4/6/8 で測ります。
+**バッテリー 50% 以上、省電力モードをオフ、本体が冷えた状態**で測ってください。
+低バッテリー時や発熱時は Android が CPU を強く制限し、10 倍以上遅くなります。
+結果の一番速いスレッド数を `JARVIS_THREADS=4` のように `start.sh` に渡せます。
+
 ### 読み込みが 1 秒あたり 30 トークン以下のとき
 
 Termux のパッケージ版 llama.cpp は汎用ビルドで、最近のスマホにある高速命令
