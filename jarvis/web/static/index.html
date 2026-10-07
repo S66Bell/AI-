@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<meta name="theme-color" content="#0b1220">
+<meta name="theme-color" content="#f3f5fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1222" media="(prefers-color-scheme: dark)">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -13,74 +14,124 @@
 <link rel="apple-touch-icon" href="/icon-192.png">
 <style>
 :root{
-  --bg:#0b1220;--panel:#121b2e;--panel2:#182440;--line:#243352;--text:#e6edf7;--muted:#8da2c0;
-  --accent:#4cc9f0;--accent2:#1f8fb3;--user:#1d3a5c;--ok:#3ddc97;--warn:#ffb347;--err:#ff6b6b;
+  --bg:#f3f5fb;--bg2:#eef1fa;--text:#17213a;--muted:#6b7590;--line:rgba(23,33,58,.08);
+  --glass:rgba(255,255,255,.62);--glass-strong:rgba(255,255,255,.82);--glass-border:rgba(255,255,255,.75);
+  --a1:#5b8cff;--a2:#8a6cff;--a3:#ff6fb5;--a4:#2fd3ff;
+  --user1:#4f86ff;--user2:#7a63ff;
+  --ok:#36c98f;--warn:#ffb84d;--err:#ff5f6d;
+  --shadow:0 10px 30px rgba(43,61,120,.10);
   --sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px);
 }
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0e1222;--bg2:#121733;--text:#eaeefb;--muted:#97a0bd;--line:rgba(255,255,255,.08);
+    --glass:rgba(24,30,56,.55);--glass-strong:rgba(24,30,56,.8);--glass-border:rgba(255,255,255,.12);
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+}
 *{box-sizing:border-box}
-html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans JP",sans-serif;-webkit-text-size-adjust:100%}
-body{display:flex;flex-direction:column;overflow:hidden}
-header{padding:calc(8px + var(--sat)) 14px 8px;background:var(--panel);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
-header .name{font-weight:700;letter-spacing:.08em;color:var(--accent)}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font:16px/1.55 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Hiragino Sans","Noto Sans JP",sans-serif;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased}
+body{display:flex;flex-direction:column;overflow:hidden;position:relative}
+/* aurora background */
+body::before,body::after{content:"";position:fixed;inset:-20%;z-index:-1;pointer-events:none;filter:blur(60px);opacity:.75}
+body::before{background:
+  radial-gradient(38% 30% at 18% 12%, rgba(91,140,255,.45), transparent 70%),
+  radial-gradient(34% 28% at 85% 18%, rgba(255,111,181,.35), transparent 70%),
+  radial-gradient(40% 32% at 70% 92%, rgba(47,211,255,.35), transparent 70%),
+  radial-gradient(30% 26% at 12% 86%, rgba(138,108,255,.35), transparent 70%)}
+body::after{background:radial-gradient(40% 40% at 50% 50%, rgba(255,255,255,.35), transparent 70%);animation:drift 18s ease-in-out infinite alternate}
+@media (prefers-color-scheme: dark){ body::after{background:radial-gradient(40% 40% at 50% 50%, rgba(138,108,255,.18), transparent 70%)} }
+@keyframes drift{from{transform:translate(-4%,-2%) scale(1)}to{transform:translate(4%,3%) scale(1.08)}}
+/* header */
+header{padding:calc(10px + var(--sat)) 18px 10px;display:flex;align-items:center;gap:12px}
+header .name{font-weight:700;letter-spacing:.14em;font-size:15px;background:linear-gradient(90deg,var(--a1),var(--a2) 55%,var(--a3));-webkit-background-clip:text;background-clip:text;color:transparent}
 header .model{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
-header .dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
-header .dot.ok{background:var(--ok)} header .dot.err{background:var(--err)} header .dot.busy{background:var(--warn)}
-nav{display:flex;background:var(--panel);border-bottom:1px solid var(--line)}
-nav button{flex:1;background:none;border:0;color:var(--muted);padding:10px 4px;font-size:14px;border-bottom:2px solid transparent}
-nav button.active{color:var(--accent);border-bottom-color:var(--accent)}
+/* the orb: idle = slow breathing, busy = fast swirl, err = red */
+.orb{width:30px;height:30px;border-radius:50%;position:relative;flex:none;
+  background:conic-gradient(from 0deg,var(--a1),var(--a4),var(--a2),var(--a3),var(--a1));
+  box-shadow:0 0 18px rgba(91,140,255,.45),0 0 40px rgba(138,108,255,.25);
+  animation:spin 9s linear infinite, breathe 3.2s ease-in-out infinite}
+.orb::after{content:"";position:absolute;inset:4px;border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.95),rgba(255,255,255,.35) 40%,rgba(255,255,255,0) 70%);mix-blend-mode:screen}
+.orb.busy{animation:spin 1.4s linear infinite, breathe 1.1s ease-in-out infinite;box-shadow:0 0 24px rgba(91,140,255,.7),0 0 60px rgba(255,111,181,.4)}
+.orb.err{background:conic-gradient(from 0deg,#ff5f6d,#ff9a7a,#ff5f6d);box-shadow:0 0 18px rgba(255,95,109,.5);animation:none}
+.orb.ok{}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes breathe{0%,100%{filter:saturate(1) brightness(1)}50%{filter:saturate(1.3) brightness(1.12)}}
+/* segmented tabs */
+nav{margin:0 14px 8px;padding:4px;border-radius:14px;background:var(--glass);border:1px solid var(--glass-border);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);display:flex;box-shadow:var(--shadow)}
+nav button{flex:1;background:none;border:0;color:var(--muted);padding:9px 4px;font-size:14px;font-weight:600;border-radius:10px;transition:all .2s}
+nav button.active{color:var(--text);background:var(--glass-strong);box-shadow:0 2px 8px rgba(43,61,120,.12)}
 main{flex:1;min-height:0;position:relative}
 .view{position:absolute;inset:0;display:none;flex-direction:column}
 .view.active{display:flex}
-.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 12px 8px}
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 14px 12px}
 /* chat */
-.msg{max-width:88%;margin:6px 0;padding:10px 12px;border-radius:14px;white-space:pre-wrap;word-break:break-word}
-.msg.user{margin-left:auto;background:var(--user);border-bottom-right-radius:4px}
-.msg.bot{margin-right:auto;background:var(--panel2);border-bottom-left-radius:4px}
-.msg.bot .md pre{background:#0a0f1a;padding:8px;border-radius:8px;overflow-x:auto;font-size:13px;white-space:pre}
-.msg.bot .md code{background:#0a0f1a;padding:1px 4px;border-radius:4px;font-size:13px}
+.msg{max-width:86%;margin:8px 0;padding:11px 15px;border-radius:20px;white-space:pre-wrap;word-break:break-word;line-height:1.55;animation:pop .22s ease-out}
+@keyframes pop{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}
+.msg.user{margin-left:auto;color:#fff;background:linear-gradient(135deg,var(--user1),var(--user2));border-bottom-right-radius:6px;box-shadow:0 6px 18px rgba(93,112,255,.28)}
+.msg.bot{margin-right:auto;background:var(--glass-strong);border:1px solid var(--glass-border);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom-left-radius:6px;box-shadow:var(--shadow)}
+.msg.bot .md pre{background:rgba(23,33,58,.06);padding:10px;border-radius:12px;overflow-x:auto;font-size:13px;white-space:pre}
+.msg.bot .md code{background:rgba(23,33,58,.07);padding:1px 5px;border-radius:6px;font-size:13px}
+@media (prefers-color-scheme: dark){ .msg.bot .md pre,.msg.bot .md code{background:rgba(255,255,255,.08)} }
 .msg.bot .md ul{margin:4px 0;padding-left:20px}
+.msg.bot .md a{color:var(--a1)}
 .msg .thinking{color:var(--muted);font-style:italic;font-size:13px}
-.status{color:var(--muted);font-size:12px;margin:2px 0 2px 8px}
-.status::before{content:"· "}
-.errline{color:var(--err);font-size:13px;margin:4px 8px}
-.composer{display:flex;gap:8px;align-items:flex-end;padding:8px 10px calc(8px + var(--sab));background:var(--panel);border-top:1px solid var(--line)}
-textarea{flex:1;resize:none;border:1px solid var(--line);border-radius:14px;background:var(--bg);color:var(--text);padding:10px 12px;font:inherit;max-height:140px;min-height:42px}
-.btn{border:0;border-radius:12px;padding:10px 14px;font:inherit;font-weight:600;background:var(--accent);color:#06202b}
-.btn.sec{background:var(--panel2);color:var(--text)}
-.btn.icon{width:42px;height:42px;padding:0;display:flex;align-items:center;justify-content:center;font-size:18px}
+.status{color:var(--muted);font-size:12px;margin:4px 0 4px 10px;display:flex;align-items:center;gap:6px}
+.status::before{content:"";width:6px;height:6px;border-radius:50%;background:linear-gradient(135deg,var(--a1),var(--a3));flex:none}
+.status.wait::before{width:10px;height:10px;animation:spin 1.2s linear infinite, breathe 1s ease-in-out infinite;background:conic-gradient(from 0deg,var(--a1),var(--a4),var(--a2),var(--a3),var(--a1))}
+.errline{color:var(--err);font-size:13px;margin:4px 10px}
+.note{margin:10px auto;max-width:92%;padding:10px 14px;border-radius:16px;background:var(--glass);border:1px solid var(--glass-border);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);font-size:13px;color:var(--muted);text-align:center;white-space:pre-wrap;word-break:break-word}
+.note b{color:var(--text);display:block;margin-bottom:2px}
+/* composer */
+.composer{display:flex;gap:8px;align-items:flex-end;padding:8px 12px calc(10px + var(--sab))}
+textarea{flex:1;resize:none;border:1px solid var(--glass-border);border-radius:22px;background:var(--glass-strong);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);color:var(--text);padding:11px 16px;font:inherit;max-height:140px;min-height:44px;box-shadow:var(--shadow);outline:none}
+textarea:focus{border-color:rgba(91,140,255,.55);box-shadow:0 0 0 4px rgba(91,140,255,.15),var(--shadow)}
+textarea::placeholder{color:var(--muted)}
+.btn{border:0;border-radius:14px;padding:11px 16px;font:inherit;font-weight:600;color:#fff;background:linear-gradient(135deg,var(--a1),var(--a2));box-shadow:0 6px 16px rgba(93,112,255,.3);transition:transform .12s,opacity .2s}
+.btn:active{transform:scale(.96)}
+.btn.sec{background:var(--glass-strong);color:var(--text);border:1px solid var(--glass-border);box-shadow:var(--shadow)}
+.btn.icon{width:44px;height:44px;padding:0;display:flex;align-items:center;justify-content:center;font-size:18px;border-radius:50%}
 .btn:disabled{opacity:.5}
-.btn.rec{background:var(--err);color:#fff}
-/* forms / cards */
-.card{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0}
+.btn.rec{background:linear-gradient(135deg,var(--a3),#ff8f6b);color:#fff;animation:breathe 1s ease-in-out infinite}
+/* cards / forms */
+.card{background:var(--glass-strong);border:1px solid var(--glass-border);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-radius:18px;padding:12px 14px;margin:10px 0;box-shadow:var(--shadow);animation:pop .22s ease-out}
 .card .title{font-weight:600;word-break:break-word}
-.card .meta{font-size:12px;color:var(--muted);margin-top:2px}
-.card .actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
-.card .actions .btn{padding:6px 10px;font-size:13px}
-.badge{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:var(--line);color:var(--text);margin-right:6px;vertical-align:middle}
-.badge.running{background:var(--warn);color:#2a1800} .badge.done{background:var(--ok);color:#05301c}
-.badge.failed,.badge.cancelled{background:var(--err);color:#fff}
-.form{padding:10px 12px;background:var(--panel);border-top:1px solid var(--line);padding-bottom:calc(10px + var(--sab))}
+.card .meta{font-size:12px;color:var(--muted);margin-top:3px}
+.card .actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.card .actions .btn{padding:7px 12px;font-size:13px;border-radius:12px}
+.badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;background:rgba(23,33,58,.08);color:var(--text);margin-right:8px;vertical-align:middle}
+.badge.running{background:linear-gradient(135deg,#ffd37a,#ffb84d);color:#3a2600}
+.badge.done{background:linear-gradient(135deg,#5fe3b2,#36c98f);color:#073b27}
+.badge.queued{background:linear-gradient(135deg,#8fc1ff,#5b8cff);color:#fff}
+.badge.failed,.badge.cancelled{background:linear-gradient(135deg,#ff7d88,#ff5f6d);color:#fff}
+.form{padding:10px 14px calc(12px + var(--sab));background:var(--glass);border-top:1px solid var(--glass-border);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 .form .row{display:flex;gap:8px;margin-top:8px;align-items:center}
-.form input,.form select{flex:1;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text);padding:8px 10px;font:inherit;min-width:0}
-.form textarea{width:100%;max-height:120px}
-.result{background:#0a0f1a;border-radius:8px;padding:8px;margin-top:8px;white-space:pre-wrap;word-break:break-word;font-size:14px}
-.log{font-size:12px;color:var(--muted);margin-top:6px;max-height:40vh;overflow:auto;white-space:pre-wrap;word-break:break-word}
+.form input,.form select{flex:1;border:1px solid var(--glass-border);border-radius:14px;background:var(--glass-strong);color:var(--text);padding:9px 12px;font:inherit;min-width:0;outline:none}
+.form input:focus,.form select:focus{border-color:rgba(91,140,255,.55);box-shadow:0 0 0 4px rgba(91,140,255,.15)}
+.form textarea{width:100%;max-height:120px;border-radius:16px}
+.result{background:rgba(23,33,58,.05);border-radius:12px;padding:10px;margin-top:10px;white-space:pre-wrap;word-break:break-word;font-size:14px}
+@media (prefers-color-scheme: dark){ .result{background:rgba(255,255,255,.06)} }
+.log{font-size:12px;color:var(--muted);margin-top:8px;max-height:40vh;overflow:auto;white-space:pre-wrap;word-break:break-word}
 .log .text{color:var(--text)} .log .status::before,.log .error::before{content:"· "} .log .error{color:var(--err)}
-.empty{color:var(--muted);text-align:center;padding:30px 10px}
-.hint{font-size:12px;color:var(--muted);margin:4px 0 0}
+.empty{color:var(--muted);text-align:center;padding:40px 10px}
+.empty .orb{margin:0 auto 14px;width:56px;height:56px;animation-duration:12s,4s}
+.hint{font-size:12px;color:var(--muted);margin:6px 2px 0}
 /* modal */
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:20px;z-index:10}
+.modal{position:fixed;inset:0;background:rgba(14,18,34,.45);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:20px;z-index:10}
 .modal.show{display:flex}
-.modal .box{background:var(--panel);border:1px solid var(--warn);border-radius:14px;padding:16px;max-width:460px;width:100%}
-.modal pre{white-space:pre-wrap;word-break:break-word;background:#0a0f1a;padding:8px;border-radius:8px;font-size:13px}
-.toggle{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center}
+.modal .box{background:var(--glass-strong);border:1px solid var(--glass-border);border-radius:22px;padding:18px;max-width:460px;width:100%;box-shadow:var(--shadow);animation:pop .2s ease-out}
+.modal .box > div:first-child{font-weight:700;color:var(--warn)}
+.modal pre{white-space:pre-wrap;word-break:break-word;background:rgba(23,33,58,.06);padding:10px;border-radius:12px;font-size:13px}
+@media (prefers-color-scheme: dark){ .modal pre{background:rgba(255,255,255,.08)} }
+.toggle{font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:center}
+.toggle input{accent-color:var(--a1)}
 </style>
 </head>
 <body>
 <header>
+  <span class="orb" id="dot" aria-hidden="true"></span>
   <span class="name">JARVIS</span>
   <span class="model" id="model">connecting…</span>
-  <span class="dot" id="dot"></span>
 </header>
 <nav>
   <button data-view="chat" class="active">チャット</button>
@@ -91,7 +142,7 @@ textarea{flex:1;resize:none;border:1px solid var(--line);border-radius:14px;back
 <main>
   <!-- chat -->
   <section class="view active" id="view-chat">
-    <div class="scroll" id="chat"></div>
+    <div class="scroll" id="chat"><div class="empty"><div class="orb"></div>ご用件をどうぞ</div></div>
     <div class="composer">
       <button class="btn icon sec" id="mic" title="音声入力">🎤</button>
       <textarea id="input" rows="1" placeholder="メッセージ" enterkeyhint="send"></textarea>
@@ -100,7 +151,7 @@ textarea{flex:1;resize:none;border:1px solid var(--line);border-radius:14px;back
   </section>
   <!-- tasks -->
   <section class="view" id="view-tasks">
-    <div class="scroll" id="tasks"><div class="empty">タスクはまだありません</div></div>
+    <div class="scroll" id="tasks"><div class="empty"><div class="orb"></div>タスクはまだありません</div></div>
     <div class="form">
       <textarea id="taskGoal" rows="2" placeholder="JARVISに任せる仕事(例: 今週のAI関連ニュースを3つ調べて要約して)"></textarea>
       <div class="row"><button class="btn" id="taskStart">バックグラウンドで実行</button></div>
@@ -185,27 +236,39 @@ async function loadState() {
     const s = await api('/api/state');
     const short = String(s.model).split('/').pop().replace(/\.gguf$/i, '');
     $('#model').textContent = (s.provider === 'claude' ? 'Claude · ' : 'local · ') + short;
-    $('#dot').className = 'dot ' + (s.ready ? (s.busy ? 'busy' : 'ok') : 'err');
+    $('#dot').className = 'orb ' + (s.ready ? (s.busy ? 'busy' : 'ok') : 'err');
     if (!s.ready && s.error) addError(s.error);
     document.title = s.name;
     $('header .name').textContent = s.name;
-  } catch (e) { $('#dot').className = 'dot err'; }
+  } catch (e) { $('#dot').className = 'orb err'; }
 }
 // ── chat ─────────────────────────────────────────────────────
 const chat = $('#chat'), input = $('#input'), send = $('#send');
 const scrollDown = () => { chat.scrollTop = chat.scrollHeight; };
 function addMsg(role, text) {
+  const ph = chat.querySelector('.empty'); if (ph) ph.remove();
   const d = document.createElement('div'); d.className = 'msg ' + role;
   if (role === 'bot') { d.innerHTML = '<div class="md">' + md(text) + '</div>'; } else d.textContent = text;
   chat.appendChild(d); scrollDown(); return d;
+}
+function addNote(text) {
+  const ph = chat.querySelector('.empty'); if (ph) ph.remove();
+  const m = text.match(/goal:\s*([\s\S]*?)\nResult:\n([\s\S]*)$/);
+  const d = document.createElement('div'); d.className = 'note';
+  if (m) { d.innerHTML = '<b>✓ バックグラウンドタスク完了: ' + esc(m[1].trim()) + '</b>' + esc(m[2].trim().slice(0, 400)); }
+  else d.textContent = text.replace(/^\[System note\]\s*/, '');
+  chat.appendChild(d); scrollDown();
 }
 function addStatus(text) { const d = document.createElement('div'); d.className = 'status'; d.textContent = text; chat.appendChild(d); scrollDown(); }
 function addError(text) { const d = document.createElement('div'); d.className = 'errline'; d.textContent = text; chat.appendChild(d); scrollDown(); }
 async function loadHistory() {
   try {
     const h = await api('/api/history?limit=60');
-    chat.innerHTML = '';
-    for (const r of h.rows) addMsg(r.role === 'user' ? 'user' : 'bot', r.text);
+    if (h.rows.length) chat.innerHTML = '';
+    for (const r of h.rows) {
+      if (r.role === 'user' && r.text.startsWith('[System note]')) addNote(r.text);
+      else addMsg(r.role === 'user' ? 'user' : 'bot', r.text);
+    }
   } catch (e) {}
 }
 let sending = false;
@@ -308,7 +371,7 @@ async function fillTaskDetail(card, id) {
 async function loadTasks() {
   const {tasks} = await api('/api/tasks?limit=50');
   tasksEl.innerHTML = '';
-  if (!tasks.length) { tasksEl.innerHTML = '<div class="empty">タスクはまだありません</div>'; return; }
+  if (!tasks.length) { tasksEl.innerHTML = '<div class="empty"><div class="orb"></div>タスクはまだありません</div>'; return; }
   for (const t of tasks) tasksEl.appendChild(taskCard(t));
 }
 $('#taskStart').onclick = async () => {
