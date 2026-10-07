@@ -36,7 +36,7 @@ if curl -fs "http://127.0.0.1:$PORT/v1/models" >/dev/null 2>&1; then
 else
   echo "==> Starting llama-server ($(basename "$MODEL_PATH"), ctx=$CTX, threads=$THREADS)"
   llama-server -m "$MODEL_PATH" --host 127.0.0.1 --port "$PORT" \
-    -c "$CTX" -t "$THREADS" --jinja --flash-attn on >"$LOG" 2>&1 &
+    -c "$CTX" -t "$THREADS" --jinja >"$LOG" 2>&1 &
   LLM_PID=$!
   for i in $(seq 1 120); do
     if curl -fs "http://127.0.0.1:$PORT/v1/models" >/dev/null 2>&1; then break; fi

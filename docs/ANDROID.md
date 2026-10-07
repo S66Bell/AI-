@@ -64,6 +64,10 @@ Chrome で <http://localhost:8765> を開いてください。メニューの
 
 停止は Ctrl-C、または別のセッションで `bash scripts/termux/stop.sh` です。
 
+「このサイトにアクセスできません」と出るときは、JARVIS がまだ起動していません。
+`bash scripts/termux/doctor.sh` を実行して出力をそのまま貼ってください。
+URL は `http://127.0.0.1:8765` でも試してみてください。
+
 ## 使い方
 
 画面は 4 つのタブに分かれています。
