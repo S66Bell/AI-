@@ -63,6 +63,10 @@ class Config:
     # Learning (memory reflection).
     reflect_enabled: bool
     reflect_every: int
+    learn_idle_seconds: float
+    # How many past turns to replay into the prompt at startup. Small keeps
+    # a phone fast; the rolling summary covers everything older.
+    history_turns: int
 
     @property
     def is_openai_compat(self) -> bool:
@@ -118,4 +122,6 @@ class Config:
             agent_self_check=_bool("JARVIS_AGENT_SELF_CHECK", True),
             reflect_enabled=_bool("JARVIS_LEARN", True),
             reflect_every=int(os.environ.get("JARVIS_LEARN_EVERY", "3")),
+            learn_idle_seconds=float(os.environ.get("JARVIS_LEARN_IDLE", "90")),
+            history_turns=int(os.environ.get("JARVIS_HISTORY_TURNS", "16")),
         )

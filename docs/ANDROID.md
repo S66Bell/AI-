@@ -101,6 +101,29 @@ JARVIS_WEB_TOKEN=好きな長い文字列
 使いたい場合は [Tailscale](https://tailscale.com/)(個人利用は無料)を入れると、
 ポートを公開せずに安全につながります。
 
+## 返事が遅いとき
+
+返事の時間は「プロンプトの読み込み」と「文章の生成」の 2 つに分かれます。
+スマホで効くのはほぼ前者で、前回の内容をキャッシュできているかで数十秒から
+数分まで変わります。確認は次のコマンドで、`prompt eval time` の行を見ます。
+
+```bash
+grep -E "prompt eval time|eval time" ~/.jarvis/llama-server.log | tail -n 6
+```
+
+- `prompt eval time` の tokens が毎回数千 → キャッシュが効いていません。`git pull`
+  して最新の `start.sh` で起動し直してください(`--cache-reuse` が有効になります)。
+- 毎回数百 tokens なのに遅い → CPU が遅い/熱で性能が落ちています。
+  `JARVIS_THREADS=4` や `=8` を試す、ケースを外す、3B モデルに切り替える。
+- `eval time` の tokens per second が 3 未満 → モデルが大きすぎます。3B に。
+
+3B への切り替えは次の 2 行です(7B は残るので戻せます)。
+
+```bash
+JARVIS_MODEL_SIZE=3b bash scripts/termux/setup.sh
+JARVIS_MODEL_PATH=~/models/qwen2.5-3b-instruct-q4_k_m.gguf bash scripts/termux/start.sh
+```
+
 ## 調整のヒント
 
 - **遅い / メモリ不足で落ちる**: `JARVIS_CTX=4096 bash scripts/termux/start.sh`

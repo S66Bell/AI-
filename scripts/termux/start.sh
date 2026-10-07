@@ -35,8 +35,13 @@ if curl -fs "http://127.0.0.1:$PORT/v1/models" >/dev/null 2>&1; then
   echo "==> llama-server already running on port $PORT"
 else
   echo "==> Starting llama-server ($(basename "$MODEL_PATH"), ctx=$CTX, threads=$THREADS)"
+  # --cache-reuse lets the server keep already-processed prompt chunks even
+  # when something earlier in the prompt changed: the difference between
+  # re-reading a few hundred tokens and the whole conversation every turn.
+  EXTRA=""
+  llama-server --help 2>&1 | grep -q -- "--cache-reuse" && EXTRA="--cache-reuse 256"
   llama-server -m "$MODEL_PATH" --host 127.0.0.1 --port "$PORT" \
-    -c "$CTX" -t "$THREADS" --jinja >"$LOG" 2>&1 &
+    -c "$CTX" -t "$THREADS" --jinja $EXTRA >"$LOG" 2>&1 &
   LLM_PID=$!
   for i in $(seq 1 120); do
     if curl -fs "http://127.0.0.1:$PORT/v1/models" >/dev/null 2>&1; then break; fi

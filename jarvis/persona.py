@@ -60,7 +60,7 @@ def build_system_prompt(config: Config, long_term_memory: str = "", summary: str
     context = f"""
 
 ── 今の状況 ──
-日時: {datetime.now().strftime('%Y年%m月%d日 (%a) %H:%M')}
+今日: {datetime.now().strftime('%Y年%m月%d日 (%a)')}(今の時刻が必要なら get_datetime ツールで確認)
 動作環境: {platform.system()} {platform.release()} ({platform.machine()})
 """
 

@@ -65,7 +65,7 @@ class CLI:
     def __init__(self, config: Config):
         self.config = config
         self.console = Console()
-        self.memory = Memory(config.data_dir)
+        self.memory = Memory(config.data_dir, history_turns=config.history_turns)
         self.emitter = Emitter(self.console, config.assistant_name)
         self.show_thinking = config.show_thinking
         self.voice = None

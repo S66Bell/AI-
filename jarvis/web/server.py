@@ -61,12 +61,14 @@ class _Sink:
 class JarvisWeb:
     def __init__(self, config: Config, memory: Memory | None = None):
         self.config = config
-        self.memory = memory or Memory(config.data_dir)
+        self.memory = memory or Memory(config.data_dir, history_turns=config.history_turns)
         self.log_path = config.data_dir / "web.log"
         self.runner = TaskRunner(config, self.memory)
         self.scheduler = Scheduler(self.runner, config.data_dir)
         self.scheduler.start()
-        self.learner = Learner(config, self.memory, log=self.log)
+        self.learner = Learner(
+            config, self.memory, log=self.log, busy=lambda: self._chat_lock.locked()
+        )
         self._turn_started: float | None = None
 
         self.assistant: Assistant | None = None

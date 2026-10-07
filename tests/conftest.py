@@ -118,6 +118,7 @@ def config(tmp_path, fake_model, monkeypatch):
     monkeypatch.setenv("JARVIS_OPENAI_BASE_URL", fake_model.base_url)
     monkeypatch.setenv("JARVIS_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("JARVIS_AGENT_MAX_STEPS", "6")
+    monkeypatch.setenv("JARVIS_LEARN_IDLE", "0")
     from jarvis.config import Config
 
     return Config.load()

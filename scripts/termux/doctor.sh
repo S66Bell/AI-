@@ -48,6 +48,9 @@ echo
 echo "--- web log (last 25 lines)"
 tail -n 25 "$HOME/.jarvis/web.log" 2>/dev/null | sed 's/^/  /' || echo "  <no log>"
 echo
+echo "--- llama-server timings (last 6 requests)"
+grep -E "prompt eval time|eval time|total time" "$HOME/.jarvis/llama-server.log" 2>/dev/null | tail -n 18 | sed 's/^/  /' || true
+echo
 echo "--- llama-server log (last 25 lines)"
 tail -n 25 "$HOME/.jarvis/llama-server.log" 2>/dev/null | sed 's/^/  /' || echo "  <no log>"
 echo

@@ -15,6 +15,7 @@ import json
 import queue
 import re
 import threading
+import time
 from datetime import datetime
 from typing import Callable
 
@@ -48,10 +49,25 @@ def _summary_system(config: Config) -> str:
 class Learner:
     """Runs reflection / summarisation jobs on a background thread."""
 
-    def __init__(self, config: Config, memory: Memory, *, log: Callable[[str], None] | None = None):
+    def __init__(
+        self,
+        config: Config,
+        memory: Memory,
+        *,
+        log: Callable[[str], None] | None = None,
+        busy: Callable[[], bool] | None = None,
+        idle_seconds: float | None = None,
+    ):
         self.config = config
         self.memory = memory
         self.log = log or (lambda _m: None)
+        # Learning shares the one model server with the chat. Running it while
+        # the user is mid-conversation would both delay their next reply and
+        # evict the chat's prompt from the KV cache, so jobs wait until the
+        # conversation has been quiet for ``idle_seconds``.
+        self.busy = busy or (lambda: False)
+        self.idle_seconds = config.learn_idle_seconds if idle_seconds is None else idle_seconds
+        self._last_turn = 0.0
         self.every = max(1, config.reflect_every)
         self._since_reflect = 0
         self._queue: "queue.Queue[str]" = queue.Queue()
@@ -66,6 +82,7 @@ class Learner:
         """Call after each completed chat turn."""
         if not self.config.reflect_enabled:
             return
+        self._last_turn = time.monotonic()
         self._since_reflect += 1
         if self._since_reflect >= self.every:
             self._since_reflect = 0
@@ -93,9 +110,14 @@ class Learner:
             return backend.run_turn(prompt)
 
     # ── jobs ───────────────────────────────────────────────────────────
+    def _wait_for_idle(self) -> None:
+        while self.busy() or time.monotonic() - self._last_turn < self.idle_seconds:
+            time.sleep(5)
+
     def _loop(self) -> None:
         while True:
             job = self._queue.get()
+            self._wait_for_idle()
             try:
                 if job == "reflect":
                     self.reflect()
