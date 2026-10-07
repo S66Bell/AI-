@@ -170,7 +170,9 @@ class JarvisWeb:
                 sink.event("error", self.backend_error or "Model backend unavailable.")
                 sink.event("done", {"reply": ""})
                 return
+            self.learner.yield_to_chat()
             assistant.backend.should_stop = lambda: self._cancel_requested
+            assistant.backend.debug_log = self.log
             self._cancel_requested = False
             try:
                 reply = assistant.chat(message)
