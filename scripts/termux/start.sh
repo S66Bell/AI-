@@ -15,13 +15,11 @@ PORT="${JARVIS_LLM_PORT:-8080}"
 LLAMA_SERVER="llama-server"
 [ -x "$HOME/llama.cpp/build/bin/llama-server" ] && LLAMA_SERVER="$HOME/llama.cpp/build/bin/llama-server"
 CTX="${JARVIS_CTX:-8192}"
-# Use the performance cores only: on a 8–10 core phone the efficiency cores
-# slow generation down if llama.cpp spreads across all of them.
+# Threads: measured on a Galaxy S26 with scripts/termux/bench.sh, using all
+# 8 visible cores was fastest for both prompt reading and generation
+# (109 vs 56 tok/s at 6 threads). Override with JARVIS_THREADS=N.
 NPROC="$(nproc)"
-if [ -z "${JARVIS_THREADS:-}" ]; then
-  if [ "$NPROC" -ge 8 ]; then JARVIS_THREADS=6; elif [ "$NPROC" -ge 4 ]; then JARVIS_THREADS=4; else JARVIS_THREADS="$NPROC"; fi
-fi
-THREADS="$JARVIS_THREADS"
+THREADS="${JARVIS_THREADS:-$(( NPROC > 8 ? 8 : NPROC ))}"
 LOG="$HOME/.jarvis/llama-server.log"
 mkdir -p "$HOME/.jarvis"
 

@@ -45,9 +45,11 @@ bash scripts/termux/setup.sh
 
 RAM 12GB なので **7B が自動で選ばれます**。7B を 4bit 量子化したモデルは
 約 5GB をメモリに載せるため、他のアプリを閉じた状態で使ってください。
-生成速度は 1 秒あたり数トークン程度で、ひとつの返事に 10〜30 秒かかる
-ことがあります。`start.sh` はスマホの高性能コアだけを使う設定(6 スレッド)
-で起動します。
+実測(Galaxy S26、最適化ビルド、8 スレッド)では 3B で読み込み 110 トークン/秒、
+生成 28 トークン/秒。最初の返事は約 20 秒、2 回目以降は数秒です。7B はその
+半分程度の速さで、初回 45 秒前後、以降 10 秒程度が目安です。
+`start.sh` は 8 スレッドで起動します。必ず `scripts/termux/build-llama.sh` で
+最適化ビルドを入れてください(パッケージ版は 3 倍遅い)。
 
 もっと速さが欲しいときは `JARVIS_MODEL_SIZE=3b bash scripts/termux/setup.sh`
 で 3B も入れておき、`JARVIS_MODEL_PATH=~/models/qwen2.5-3b-instruct-q4_k_m.gguf bash scripts/termux/start.sh`
