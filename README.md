@@ -16,6 +16,18 @@ use the Claude API instead. The default is local and free.
 
 > "Sometimes you gotta run before you can walk." — JARVIS does the running.
 
+## Run it on a Mac, use it from your phone (recommended)
+
+```bash
+git clone https://github.com/S66Bell/AI-.git mira && cd mira
+bash scripts/mac/setup.sh       # Homebrew llama.cpp (Metal) + a model sized for your RAM
+bash scripts/mac/start.sh       # prints the URL + token for your phone
+bash scripts/mac/install-service.sh   # optional: always on at login
+```
+
+A 24GB Apple Silicon Mac runs Qwen2.5-14B comfortably. Guide (Japanese):
+[docs/MAC.md](docs/MAC.md).
+
 ## Run it on your phone (Android)
 
 JARVIS runs entirely on an Android phone inside [Termux](https://f-droid.org/packages/com.termux/),

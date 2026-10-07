@@ -1,0 +1,101 @@
+# MIRA を Mac で動かし、スマホから使う
+
+Mac(Apple Silicon 推奨、RAM 16GB 以上)でモデルと MIRA を動かし、スマホは
+ブラウザでつなぐ構成です。Metal(GPU)で動くので、スマホ内で動かすより
+桁違いに速く、14B クラスの賢いモデルが使えます。会話内容は Mac から外に出ません。
+
+## 必要なもの
+
+- macOS(Apple Silicon なら M1 以降どれでも。RAM 24GB なら 14B モデルが快適)
+- [Homebrew](https://brew.sh)(未導入なら、サイトの 1 行コマンドで入れる)
+- 空き容量 15GB 程度(14B モデルは約 9GB)
+
+## セットアップ(初回のみ)
+
+ターミナルで:
+
+```bash
+git clone https://github.com/S66Bell/AI-.git mira
+cd mira
+bash scripts/mac/setup.sh
+```
+
+スクリプトがやること:
+
+1. Homebrew で llama.cpp(Metal 対応)と Python 3.12 をインストール
+2. 仮想環境を作って MIRA の依存ライブラリを入れる
+3. RAM に合わせてモデルを自動選択してダウンロード
+4. `.env` を作成(スマホからつなぐためのアクセストークンも自動生成)
+
+| RAM | 自動選択 | サイズ | 目安 |
+| --- | --- | --- | --- |
+| 12〜19GB | 7B | 約 4.7GB | 速い |
+| 20〜39GB | 14B | 約 9GB | 賢さと速さのバランス(24GB Mac の既定) |
+| 40GB 以上 | 32B | 約 20GB | かなり賢い |
+
+別のサイズにしたいときは `JARVIS_MODEL_SIZE=7b bash scripts/mac/setup.sh`。
+
+## 起動
+
+```bash
+bash scripts/mac/start.sh
+```
+
+起動すると、Mac 用とスマホ用の URL、アクセストークンが表示されます。
+
+```
+    this Mac:   http://localhost:8765/
+    phone:      http://192.168.x.x:8765/   token: xxxxxxxx
+```
+
+スマホ(同じ Wi-Fi)の Chrome で `phone:` の URL を開き、聞かれたらトークンを
+入力します(1 回入れれば記憶されます)。Mac のターミナルを閉じると止まります。
+Ctrl-C で停止、または `bash scripts/mac/stop.sh`。
+
+## ログイン時に自動起動(常駐)
+
+```bash
+bash scripts/mac/install-service.sh
+```
+
+以後、Mac にログインしている間は MIRA が常に動き、落ちても自動で再起動します。
+ログは `tail -f ~/.jarvis/mac.log`。やめるときは
+`bash scripts/mac/install-service.sh remove`。
+
+スリープ中はスマホからつながりません。`start.sh` は電源接続中のスリープを
+防ぎます(`caffeinate`)。ノートの場合は電源につないでフタを開けたままにするか、
+システム設定 → バッテリー → 電源アダプタ接続時に「ディスプレイがオフのときに
+自動でスリープさせない」をオンにしてください。
+
+## 外出先から使う(Tailscale)
+
+[Tailscale](https://tailscale.com/)(個人利用は無料)を Mac とスマホに入れて同じ
+アカウントでログインすると、どこからでも `http://<Macの名前>:8765` でつながります。
+ポート開放は不要です。
+
+さらに Mac で次を実行すると HTTPS になり、スマホで**マイク(音声入力)と
+ホーム画面アプリ化**が使えるようになります(どちらもブラウザの仕様で HTTPS が必要)。
+
+```bash
+tailscale serve --bg 8765
+```
+
+表示された `https://<Macの名前>.<tailnet>.ts.net` をスマホで開いてください。
+
+## 頭脳を切り替える
+
+- Groq の無料枠(超高速、会話は Groq のサーバーへ): `bash scripts/brain.sh groq gsk_キー`
+- Mac のローカルモデルに戻す: `bash scripts/brain.sh local`
+
+切り替えたら `start.sh` を実行し直してください。
+
+## うまくいかないとき
+
+- **`llama-server exited`**: `tail -n 30 ~/.jarvis/llama-server.log` を確認。メモリ不足なら
+  `JARVIS_MODEL_SIZE=7b bash scripts/mac/setup.sh` で小さいモデルに。
+- **スマホからつながらない**: 同じ Wi-Fi か、Mac のファイアウォールで Python の
+  受信を許可しているか(システム設定 → ネットワーク → ファイアウォール)を確認。
+- **返事が遅い**: `grep -E "prompt eval time|eval time" ~/.jarvis/llama-server.log | tail -n 4`
+  で速度を確認。14B なら読み込み数百トークン/秒、生成 15〜25 トークン/秒が目安。
+- **ポート 8080 が他のアプリと衝突**: `JARVIS_LLM_PORT=8081 bash scripts/mac/start.sh` にし、
+  `.env` の `JARVIS_OPENAI_BASE_URL` も `http://127.0.0.1:8081/v1` に変更。
