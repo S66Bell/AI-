@@ -65,7 +65,6 @@ if ! command -v llama-server >/dev/null 2>&1; then
 fi
 
 echo "==> Installing JARVIS dependencies"
-pip install --upgrade pip >/dev/null
 pip install -r "$ROOT/requirements.txt"
 
 if [ ! -f "$MODELS/$FILE" ]; then
