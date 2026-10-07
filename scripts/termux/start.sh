@@ -45,8 +45,12 @@ else
   # -np 1: one slot. Several slots would process requests concurrently on a
   # phone CPU (each one crawling) and each slot has its own cache, so the
   # chat kept landing on a cold slot and re-reading the whole prompt.
+  # -fa off: llama-server turns flash attention on automatically, llama-bench
+  # does not; on this phone's CPU the server read prompts several times
+  # slower than the bench with it on. Override with JARVIS_FA=on to compare.
+  FA="${JARVIS_FA:-off}"
   "$LLAMA_SERVER" -m "$MODEL_PATH" --host 127.0.0.1 --port "$PORT" \
-    -c "$CTX" -t "$THREADS" -np 1 --jinja $EXTRA >"$LOG" 2>&1 &
+    -c "$CTX" -t "$THREADS" -np 1 -fa "$FA" --jinja $EXTRA >"$LOG" 2>&1 &
   LLM_PID=$!
   for i in $(seq 1 120); do
     if curl -fs "http://127.0.0.1:$PORT/v1/models" >/dev/null 2>&1; then break; fi
