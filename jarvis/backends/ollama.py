@@ -118,8 +118,10 @@ class OllamaBackend(Backend):
                     tool_calls.append(call)
                 if chunk.get("done"):
                     break
-        except requests.RequestException as exc:
-            raise OllamaError(f"Ollama stream interrupted: {exc}") from exc
+        except (requests.RequestException, AttributeError, ValueError) as exc:
+            # AttributeError/ValueError are what urllib3 raises when the
+            # response was closed underneath us by cancel().
+            raise OllamaError(f"Model stream interrupted: {exc}") from exc
         finally:
             self._active_resp = None
 

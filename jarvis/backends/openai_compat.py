@@ -156,7 +156,9 @@ class OpenAICompatBackend(Backend):
                         if fn.get("arguments"):
                             args = fn["arguments"]
                             slot["arguments"] += args if isinstance(args, str) else json.dumps(args)
-        except requests.RequestException as exc:
+        except (requests.RequestException, AttributeError, ValueError) as exc:
+            # AttributeError/ValueError are what urllib3 raises when the
+            # response was closed underneath us by cancel().
             raise OpenAICompatError(f"Model stream interrupted: {exc}") from exc
         finally:
             self._active_resp = None

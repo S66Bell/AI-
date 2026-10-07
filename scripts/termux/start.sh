@@ -11,6 +11,9 @@ if [ -z "$MODEL_PATH" ] || [ ! -f "$MODEL_PATH" ]; then
   exit 1
 fi
 PORT="${JARVIS_LLM_PORT:-8080}"
+# Prefer a native build (scripts/termux/build-llama.sh) over the generic package.
+LLAMA_SERVER="llama-server"
+[ -x "$HOME/llama.cpp/build/bin/llama-server" ] && LLAMA_SERVER="$HOME/llama.cpp/build/bin/llama-server"
 CTX="${JARVIS_CTX:-8192}"
 # Use the performance cores only: on a 8–10 core phone the efficiency cores
 # slow generation down if llama.cpp spreads across all of them.
@@ -40,8 +43,11 @@ else
   # re-reading a few hundred tokens and the whole conversation every turn.
   EXTRA=""
   llama-server --help 2>&1 | grep -q -- "--cache-reuse" && EXTRA="--cache-reuse 256"
+  # -np 1: one slot. Several slots would process requests concurrently on a
+  # phone CPU (each one crawling) and each slot has its own cache, so the
+  # chat kept landing on a cold slot and re-reading the whole prompt.
   llama-server -m "$MODEL_PATH" --host 127.0.0.1 --port "$PORT" \
-    -c "$CTX" -t "$THREADS" --jinja $EXTRA >"$LOG" 2>&1 &
+    -c "$CTX" -t "$THREADS" -np 1 --jinja $EXTRA >"$LOG" 2>&1 &
   LLM_PID=$!
   for i in $(seq 1 120); do
     if curl -fs "http://127.0.0.1:$PORT/v1/models" >/dev/null 2>&1; then break; fi

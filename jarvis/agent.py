@@ -335,18 +335,13 @@ def get_tools(runner: TaskRunner) -> list[Tool]:
     return [
         Tool(
             name="start_background_task",
-            description=(
-                "Delegate a multi-step job to yourself to run in the background "
-                "(research, monitoring, long investigations). Returns immediately "
-                "with a task id. Use for work that needs many tool calls or would "
-                "take a while, so the conversation isn't blocked."
-            ),
+            description="Run a long multi-step job in the background; returns a task id immediately.",
             input_schema={
                 "type": "object",
                 "properties": {
                     "goal": {
                         "type": "string",
-                        "description": "A clear, self-contained description of what to achieve.",
+                        "description": "What to achieve, self-contained.",
                     }
                 },
                 "required": ["goal"],
@@ -355,11 +350,11 @@ def get_tools(runner: TaskRunner) -> list[Tool]:
         ),
         Tool(
             name="check_background_tasks",
-            description="List recent background tasks, or show one task's progress and result.",
+            description="List background tasks, or show one task's result.",
             input_schema={
                 "type": "object",
                 "properties": {
-                    "task_id": {"type": "string", "description": "Optional task id for details."}
+                    "task_id": {"type": "string", "description": "Task id (optional)."}
                 },
             },
             run=check,

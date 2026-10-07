@@ -39,7 +39,7 @@ def get_tools() -> list[Tool]:
                 "properties": {
                     "fact": {
                         "type": "string",
-                        "description": "The fact to remember, written as a concise statement.",
+                        "description": "The fact, one short sentence.",
                     }
                 },
                 "required": ["fact"],
@@ -48,19 +48,19 @@ def get_tools() -> list[Tool]:
         ),
         Tool(
             name="recall_memories",
-            description="List everything currently stored in long-term memory.",
+            description="List long-term memory.",
             input_schema={"type": "object", "properties": {}, "required": []},
             run=_recall,
         ),
         Tool(
             name="forget",
-            description="Remove stored long-term memories whose text matches a query.",
+            description="Delete memories matching a text.",
             input_schema={
                 "type": "object",
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "Text to match against stored facts; matches are removed.",
+                        "description": "Text to match.",
                     }
                 },
                 "required": ["query"],

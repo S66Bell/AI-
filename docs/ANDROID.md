@@ -117,6 +117,19 @@ grep -E "prompt eval time|eval time" ~/.jarvis/llama-server.log | tail -n 6
   `JARVIS_THREADS=4` や `=8` を試す、ケースを外す、3B モデルに切り替える。
 - `eval time` の tokens per second が 3 未満 → モデルが大きすぎます。3B に。
 
+### 読み込みが 1 秒あたり 30 トークン以下のとき
+
+Termux のパッケージ版 llama.cpp は汎用ビルドで、最近のスマホにある高速命令
+(DOTPROD / I8MM)を使わないことがあります。`doctor.sh` の `--- cpu` に
+`asimddp` や `i8mm` があるのに、`llama.cpp build` 側が `DOTPROD = 0` なら、
+端末向けにビルドし直すと数倍速くなります(10〜20 分、充電しながら)。
+
+```bash
+bash scripts/termux/build-llama.sh
+```
+
+以後 `start.sh` は自動でこのビルドを使います。
+
 3B への切り替えは次の 2 行です(7B は残るので戻せます)。
 
 ```bash

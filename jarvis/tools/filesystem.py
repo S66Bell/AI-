@@ -68,7 +68,7 @@ def get_tools() -> list[Tool]:
     return [
         Tool(
             name="read_file",
-            description="Read a text file from the local filesystem and return its contents.",
+            description="Read a text file.",
             input_schema={
                 "type": "object",
                 "properties": {
@@ -80,11 +80,7 @@ def get_tools() -> list[Tool]:
         ),
         Tool(
             name="write_file",
-            description=(
-                "Write text to a file on the local filesystem, creating parent "
-                "directories as needed. Overwriting an existing file is confirmed "
-                "with the user unless appending."
-            ),
+            description="Write text to a file (creates or overwrites; append=true to add).",
             input_schema={
                 "type": "object",
                 "properties": {
@@ -92,7 +88,7 @@ def get_tools() -> list[Tool]:
                     "content": {"type": "string", "description": "Text to write."},
                     "append": {
                         "type": "boolean",
-                        "description": "Append instead of overwriting (default false).",
+                        "description": "Append instead of overwrite.",
                     },
                 },
                 "required": ["path", "content"],
@@ -101,13 +97,13 @@ def get_tools() -> list[Tool]:
         ),
         Tool(
             name="list_directory",
-            description="List the files and subdirectories in a directory.",
+            description="List a directory.",
             input_schema={
                 "type": "object",
                 "properties": {
                     "path": {
                         "type": "string",
-                        "description": "Directory path (defaults to current directory).",
+                        "description": "Directory (default: current).",
                     }
                 },
                 "required": [],

@@ -7,6 +7,10 @@ echo "date: $(date)"
 echo "repo: $(pwd)  branch: $(git rev-parse --abbrev-ref HEAD 2>/dev/null)  commit: $(git rev-parse --short HEAD 2>/dev/null)"
 echo "ram: $(awk '/MemTotal/ {printf "%d MB total", $2/1024}' /proc/meminfo), $(awk '/MemAvailable/ {printf "%d MB free", $2/1024}' /proc/meminfo)   cores: $(nproc)"
 echo
+echo "--- cpu"
+echo "  features: $(grep -m1 Features /proc/cpuinfo | sed 's/Features\s*: //' | tr ' ' '\n' | grep -E '^(asimddp|i8mm|sve|sve2|asimd|fphp)$' | tr '\n' ' ')"
+echo "  llama.cpp build: $(grep -m1 'system_info' "$HOME/.jarvis/llama-server.log" 2>/dev/null | grep -oE '(NEON|DOTPROD|MATMUL_INT8|SVE|FMA|FP16_VA|KLEIDIAI) = [01]' | tr '\n' ' ')"
+echo
 echo "--- tools"
 for t in python pip curl git llama-server termux-wake-lock; do
   if command -v "$t" >/dev/null 2>&1; then echo "  $t: $(command -v "$t")"; else echo "  $t: MISSING"; fi
@@ -55,7 +59,7 @@ echo "--- llama-server log (last 25 lines)"
 tail -n 25 "$HOME/.jarvis/llama-server.log" 2>/dev/null | sed 's/^/  /' || echo "  <no log>"
 echo
 echo "--- quick web start test (5s)"
-( python -m jarvis web --port 8799 >"$HOME/.jarvis/web-test.log" 2>&1 & echo $! > /tmp/jarvis-doctor.pid ); sleep 5
+( python -m jarvis web --port 8799 >"$HOME/.jarvis/web-test.log" 2>&1 & echo $! > $HOME/.jarvis/doctor.pid ); sleep 5
 if curl -fs --max-time 3 http://127.0.0.1:8799/api/state >/dev/null 2>&1; then echo "  web server starts fine"; else echo "  web server FAILED to start:"; sed 's/^/    /' "$HOME/.jarvis/web-test.log"; fi
-kill "$(cat /tmp/jarvis-doctor.pid)" 2>/dev/null || true
+kill "$(cat $HOME/.jarvis/doctor.pid)" 2>/dev/null || true
 echo "=== end ==="

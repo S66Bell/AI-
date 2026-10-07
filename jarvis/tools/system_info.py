@@ -38,13 +38,13 @@ def get_tools() -> list[Tool]:
     return [
         Tool(
             name="get_datetime",
-            description="Get the current local date and time.",
+            description="Current local date and time.",
             input_schema={"type": "object", "properties": {}, "required": []},
             run=_now,
         ),
         Tool(
             name="get_system_info",
-            description="Get information about the host machine (OS, CPU, Python, disk).",
+            description="Host info: OS, CPU, Python, disk.",
             input_schema={"type": "object", "properties": {}, "required": []},
             run=_system,
         ),

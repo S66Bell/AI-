@@ -88,23 +88,17 @@ def get_tools() -> list[Tool]:
     return [
         Tool(
             name="run_shell",
-            description=(
-                "Execute a shell command on the user's machine and return its "
-                "exit code, stdout, and stderr. Use this to inspect the system, "
-                "run programs, manage files via CLI tools, use git, etc. "
-                "Potentially destructive commands are confirmed with the user "
-                "before running."
-            ),
+            description="Run a shell command; returns exit code, stdout and stderr. Risky commands ask the user first.",
             input_schema={
                 "type": "object",
                 "properties": {
                     "command": {
                         "type": "string",
-                        "description": "The shell command to execute.",
+                        "description": "Command to run.",
                     },
                     "timeout": {
                         "type": "integer",
-                        "description": "Max seconds to wait before killing it (default 60).",
+                        "description": "Timeout in seconds (default 60).",
                     },
                 },
                 "required": ["command"],

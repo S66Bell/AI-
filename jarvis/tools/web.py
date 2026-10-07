@@ -107,18 +107,14 @@ def get_tools() -> list[Tool]:
     return [
         Tool(
             name="web_search",
-            description=(
-                "Search the web via DuckDuckGo and return the top results "
-                "(title, URL, snippet). Use this to find current information. "
-                "Requires an internet connection."
-            ),
+            description="Web search (DuckDuckGo): titles, URLs, snippets. Needs internet.",
             input_schema={
                 "type": "object",
                 "properties": {
                     "query": {"type": "string", "description": "What to search for."},
                     "max_results": {
                         "type": "integer",
-                        "description": "How many results to return (default 5).",
+                        "description": "Result count (default 5).",
                     },
                 },
                 "required": ["query"],
@@ -127,10 +123,7 @@ def get_tools() -> list[Tool]:
         ),
         Tool(
             name="web_fetch",
-            description=(
-                "Fetch a web page by URL and return its readable text content. "
-                "Requires an internet connection."
-            ),
+            description="Fetch a web page and return its readable text.",
             input_schema={
                 "type": "object",
                 "properties": {
