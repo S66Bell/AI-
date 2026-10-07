@@ -249,7 +249,7 @@ class JarvisWeb:
         host = host or self.config.web_host
         port = port or self.config.web_port
         handler = _make_handler(self)
-        server = ThreadingHTTPServer((host, port), handler)
+        server = _QuietServer((host, port), handler)
         server.daemon_threads = True
         shown = "localhost" if host in ("127.0.0.1", "0.0.0.0", "") else host
         print(f"{self.config.assistant_name} web UI: http://{shown}:{port}/")
@@ -262,6 +262,18 @@ class JarvisWeb:
         finally:
             self.scheduler.stop()
             server.server_close()
+
+
+class _QuietServer(ThreadingHTTPServer):
+    """Don't print a traceback every time a phone browser drops a connection."""
+
+    def handle_error(self, request, client_address):
+        import sys
+
+        exc = sys.exc_info()[1]
+        if isinstance(exc, (BrokenPipeError, ConnectionResetError, TimeoutError)):
+            return
+        super().handle_error(request, client_address)
 
 
 def _make_handler(app: JarvisWeb):
@@ -280,7 +292,10 @@ def _make_handler(app: JarvisWeb):
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
-            self.wfile.write(body)
+            try:
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                pass  # the browser went away (screen off, tab closed); nothing to do
 
         def _read_json(self) -> dict:
             length = int(self.headers.get("Content-Length") or 0)
@@ -335,7 +350,10 @@ def _make_handler(app: JarvisWeb):
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store" if path.suffix in (".html", ".js") else "no-cache")
             self.end_headers()
-            self.wfile.write(body)
+            try:
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
 
         # ── routing ──────────────────────────────────────────────────
         def do_GET(self) -> None:
