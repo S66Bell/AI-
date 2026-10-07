@@ -61,7 +61,7 @@ class Learner:
         self._thread = threading.Thread(target=self._loop, name="mira-learner", daemon=True)
         self._thread.start()
 
-    # ── hooks ──────────────────────────────────────────────────────────
+    # ── hooks ──────────────────────────────────────────────────────────────────
     def note_turn(self) -> None:
         """Call after each completed chat turn."""
         if not self.config.reflect_enabled:
@@ -76,7 +76,7 @@ class Learner:
     def request(self, job: str) -> None:
         self._queue.put(job)
 
-    # ── model access ───────────────────────────────────────────────────
+    # ── model access ──────────────────────────────────────────────────────────
     def _ask(self, system: str, prompt: str) -> str:
         with self._lock:
             backend = make_backend(
@@ -92,7 +92,7 @@ class Learner:
             backend.max_tool_iterations = 1
             return backend.run_turn(prompt)
 
-    # ── jobs ───────────────────────────────────────────────────────────
+    # ── jobs ───────────────────────────────────────────────────────────────────
     def _loop(self) -> None:
         while True:
             job = self._queue.get()
