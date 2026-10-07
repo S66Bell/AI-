@@ -37,20 +37,26 @@ case "$SIZE" in
 esac
 URL="https://huggingface.co/$REPO/resolve/main/$FILE"
 
+echo "==> Updating Termux (fixes 'CANNOT LINK EXECUTABLE' errors from half-upgraded packages)"
+export DEBIAN_FRONTEND=noninteractive
+APT_OPTS=(-y -o Dpkg::Options::=--force-confnew)
+pkg update -y || true
+apt full-upgrade "${APT_OPTS[@]}"
+
 echo "==> Installing packages"
-pkg update -y
-pkg install -y python git curl termux-api clang cmake make
+apt install "${APT_OPTS[@]}" python git curl termux-api clang cmake make
 
 echo "==> Installing llama.cpp"
 if ! command -v llama-server >/dev/null 2>&1; then
   # Termux ships a prebuilt package (CPU). For GPU offload on Adreno phones
   # you can additionally try:  pkg install llama-cpp-backend-vulkan
-  if pkg install -y llama-cpp; then
+  if apt install "${APT_OPTS[@]}" llama-cpp; then
     echo "    installed from the Termux repo"
   else
     echo "    building from source (this takes a while on a phone)"
     SRC="$HOME/llama.cpp"
-    [ -d "$SRC" ] || git clone --depth 1 https://github.com/ggml-org/llama.cpp "$SRC"
+    # A failed earlier clone can leave an empty directory behind.
+    [ -f "$SRC/CMakeLists.txt" ] || { rm -rf "$SRC"; git clone --depth 1 https://github.com/ggml-org/llama.cpp "$SRC"; }
     cmake -S "$SRC" -B "$SRC/build" -DGGML_NATIVE=ON -DLLAMA_CURL=OFF -DCMAKE_BUILD_TYPE=Release
     cmake --build "$SRC/build" --config Release -j"$(nproc)" --target llama-server
     mkdir -p "$PREFIX/bin"
