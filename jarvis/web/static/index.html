@@ -8,7 +8,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>JARVIS</title>
+<title>MIRA</title>
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/icon-192.png">
@@ -130,7 +130,7 @@ textarea::placeholder{color:var(--muted)}
 <body>
 <header>
   <span class="orb" id="dot" aria-hidden="true"></span>
-  <span class="name">JARVIS</span>
+  <span class="name">MIRA</span>
   <span class="model" id="model">connecting…</span>
 </header>
 <nav>
@@ -142,7 +142,7 @@ textarea::placeholder{color:var(--muted)}
 <main>
   <!-- chat -->
   <section class="view active" id="view-chat">
-    <div class="scroll" id="chat"><div class="empty"><div class="orb"></div>ご用件をどうぞ</div></div>
+    <div class="scroll" id="chat"><div class="empty"><div class="orb"></div>なんでも話しかけてね</div></div>
     <div class="composer">
       <button class="btn icon sec" id="mic" title="音声入力">🎤</button>
       <textarea id="input" rows="1" placeholder="メッセージ" enterkeyhint="send"></textarea>
@@ -153,9 +153,9 @@ textarea::placeholder{color:var(--muted)}
   <section class="view" id="view-tasks">
     <div class="scroll" id="tasks"><div class="empty"><div class="orb"></div>タスクはまだありません</div></div>
     <div class="form">
-      <textarea id="taskGoal" rows="2" placeholder="JARVISに任せる仕事(例: 今週のAI関連ニュースを3つ調べて要約して)"></textarea>
+      <textarea id="taskGoal" rows="2" placeholder="MIRAに任せる仕事(例: 今週のAI関連ニュースを3つ調べて要約して)"></textarea>
       <div class="row"><button class="btn" id="taskStart">バックグラウンドで実行</button></div>
-      <p class="hint">JARVISが自分でツールを使って最後まで進め、結果を報告します。</p>
+      <p class="hint">MIRAが自分でツールを使って最後まで進めて、結果を報告するよ。</p>
     </div>
   </section>
   <!-- schedules -->
@@ -169,7 +169,7 @@ textarea::placeholder{color:var(--muted)}
         <input id="schedEvery" type="number" min="1" value="60" style="display:none" placeholder="分">
         <button class="btn" id="schedAdd">追加</button>
       </div>
-      <p class="hint">JARVISが起動している間だけ動きます。寝ていた間の分は起動後に1回まとめて実行されます。</p>
+      <p class="hint">MIRAが起動している間だけ動くよ。寝ていた間の分は起動後に1回まとめて実行。</p>
     </div>
   </section>
   <!-- memory -->
@@ -209,7 +209,7 @@ async function api(path, opts = {}) {
   return r.json();
 }
 function askToken() {
-  const t = prompt('アクセストークンを入力してください (JARVIS_WEB_TOKEN)');
+  const t = prompt('アクセストークンを入力してね (JARVIS_WEB_TOKEN)');
   if (t) { token = t.trim(); localStorage.setItem('jarvis_token', token); location.reload(); }
 }
 // ── markdown-lite ─────────────────────────────────────────────

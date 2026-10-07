@@ -1,4 +1,4 @@
-"""A dependency-free HTTP server for JARVIS's phone UI.
+"""A dependency-free HTTP server for the phone UI.
 
 Built on the standard library only (``http.server``) so it installs on
 Android/Termux without compiling anything. It serves the single-page app in
@@ -137,7 +137,7 @@ class JarvisWeb:
     # ── chat ───────────────────────────────────────────────────────────
     def chat(self, message: str, sink: _Sink) -> None:
         if not self._chat_lock.acquire(blocking=False):
-            sink.event("error", "JARVIS is still answering a previous message.")
+            sink.event("error", "まだ前のメッセージに返事してる途中だよ。ちょっと待ってね。")
             sink.event("done", {"reply": ""})
             return
         try:
@@ -226,7 +226,7 @@ class JarvisWeb:
 def _make_handler(app: JarvisWeb):
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
-        server_version = "JARVIS/" + __version__
+        server_version = "MIRA/" + __version__
 
         def log_message(self, fmt, *args):  # keep the phone's terminal quiet
             return

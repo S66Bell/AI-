@@ -1,6 +1,10 @@
-# JARVIS — your own independent AI
+# MIRA — your own independent AI
 
-A fully self-hosted, JARVIS-style AI assistant. It runs a **free, local language
+*(The project and its `JARVIS_*` settings keep the original JARVIS name; the
+assistant herself is MIRA: a casual, best-friend-style persona that speaks
+Japanese by default. Rename her with `JARVIS_NAME`.)*
+
+A fully self-hosted personal AI assistant. It runs a **free, local language
 model on your own device** — a PC, or an Android phone — with no API keys, no
 usage fees, and no calls to Claude or OpenAI. Once the model is downloaded it
 works **completely offline**. It has a persistent personality, long-term memory,

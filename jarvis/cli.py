@@ -1,4 +1,4 @@
-"""Interactive terminal interface for JARVIS."""
+"""Interactive terminal interface."""
 
 from __future__ import annotations
 
@@ -15,14 +15,14 @@ from .memory import Memory
 HELP = """\
 Commands:
   /help            show this help
-  /memory          list everything JARVIS remembers
+  /memory          list everything MIRA remembers
   /forget <text>   forget remembered facts matching <text>
   /reset           clear the current conversation context
   /clear-history   wipe saved conversation history on disk
-  /thinking        toggle showing JARVIS's reasoning
+  /thinking        toggle showing MIRA's reasoning
   /voice           toggle voice mode (if available)
   /exit, /quit     shut down
-Anything else is sent to JARVIS.
+Anything else is sent to MIRA.
 """
 
 
@@ -30,14 +30,15 @@ class Emitter:
     """Streams assistant text to the terminal, tracking line position so
     status lines and prompts never collide with a half-written sentence."""
 
-    def __init__(self, console: Console):
+    def __init__(self, console: Console, name: str = "MIRA"):
         self.console = console
+        self.name = name
         self._at_line_start = True
         self._wrote_prefix = False
 
     def text(self, chunk: str) -> None:
         if not self._wrote_prefix:
-            self.console.print("[bold cyan]JARVIS[/] ", end="")
+            self.console.print(f"[bold cyan]{self.name}[/] ", end="")
             self._wrote_prefix = True
         sys.stdout.write(chunk)
         sys.stdout.flush()
@@ -64,7 +65,7 @@ class CLI:
         self.config = config
         self.console = Console()
         self.memory = Memory(config.data_dir)
-        self.emitter = Emitter(self.console)
+        self.emitter = Emitter(self.console, config.assistant_name)
         self.show_thinking = config.show_thinking
         self.voice = None
         # The backend (esp. Ollama readiness) is initialised lazily in run(),
@@ -129,11 +130,10 @@ class CLI:
             backend_desc = f"local · {model} (offline-capable)"
         else:
             backend_desc = f"Claude · {self.config.active_model} · effort: {self.config.effort}"
-        title = Text(f"{name} online.", style="bold cyan")
+        title = Text(f"{name}、起動したよ。", style="bold cyan")
         subtitle = Text(
-            f"Good to see you, {self.config.user_name}. "
             f"Brain: {backend_desc}\n"
-            f"Type /help for commands.",
+            f"/help でコマンド一覧。",
             style="dim",
         )
         self.console.print(Panel(Text.assemble(title, "\n", subtitle), border_style="cyan"))
@@ -238,7 +238,4 @@ class CLI:
                 self.emitter.end_turn()
                 self.console.print(f"[red]Error: {type(exc).__name__}: {exc}[/]")
 
-        self.console.print(
-            f"\n[cyan]{self.config.assistant_name} signing off. "
-            f"Goodbye, {self.config.user_name}.[/]"
-        )
+        self.console.print(f"\n[cyan]{self.config.assistant_name}: またね！[/]")

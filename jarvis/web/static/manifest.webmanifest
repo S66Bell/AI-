@@ -1,6 +1,6 @@
 {
-  "name": "JARVIS",
-  "short_name": "JARVIS",
+  "name": "MIRA",
+  "short_name": "MIRA",
   "description": "Your own private AI assistant, running on your device.",
   "start_url": "/",
   "scope": "/",

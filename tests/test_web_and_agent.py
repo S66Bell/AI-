@@ -41,7 +41,7 @@ def test_state_and_static(config):
         s = requests.get(srv.url + "/api/state").json()
         assert s["ready"] is True and s["provider"] == "llamacpp"
         assert s["model"] == "fake-model.gguf"  # adopted from the server
-        assert "JARVIS" in requests.get(srv.url + "/").text
+        assert "MIRA" in requests.get(srv.url + "/").text
         assert requests.get(srv.url + "/manifest.webmanifest").status_code == 200
         assert requests.get(srv.url + "/icon-192.png").headers["Content-Type"] == "image/png"
         assert requests.get(srv.url + "/../etc/passwd").status_code == 404
