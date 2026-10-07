@@ -29,13 +29,27 @@ bash scripts/termux/setup.sh
 3. Hugging Face から Qwen2.5-3B-Instruct(約 2GB)をダウンロード
 4. `.env` を作成し、JARVIS をスマホ内のモデルサーバーに向ける
 
-モデルサイズはスマホの RAM に合わせて選べます。
+モデルサイズはスマホの RAM から自動で選ばれます(`JARVIS_MODEL_SIZE=` で上書き可)。
 
-| RAM | 設定 | 速度の目安 |
-| --- | --- | --- |
-| 4GB | `JARVIS_MODEL_SIZE=1.5b bash scripts/termux/setup.sh` | 速い。簡単な会話・検索向き |
-| 6〜8GB | `bash scripts/termux/setup.sh`(既定の 3b) | バランス型。エージェント用途の下限 |
-| 12GB 以上 | `JARVIS_MODEL_SIZE=7b bash scripts/termux/setup.sh` | 賢いが遅い(1 秒に数トークン) |
+| RAM | 自動選択 | サイズ | 特徴 |
+| --- | --- | --- | --- |
+| 〜5GB | 1.5b | 約 1.1GB | 速い。簡単な会話・検索向き |
+| 6〜8GB | 3b | 約 2.0GB | バランス型。エージェント用途の下限 |
+| 10GB 以上 | 7b | 約 4.7GB | 賢い。ツール呼び出しが安定し、エージェント向き |
+
+### Galaxy S26 の場合
+
+RAM 12GB なので **7B が自動で選ばれます**。7B を 4bit 量子化したモデルは
+約 5GB をメモリに載せるため、他のアプリを閉じた状態で使ってください。
+生成速度は 1 秒あたり数トークン程度で、ひとつの返事に 10〜30 秒かかる
+ことがあります。`start.sh` はスマホの高性能コアだけを使う設定(6 スレッド)
+で起動します。
+
+もっと速さが欲しいときは `JARVIS_MODEL_SIZE=3b bash scripts/termux/setup.sh`
+で 3B も入れておき、`JARVIS_MODEL_PATH=~/models/qwen2.5-3b-instruct-q4_k_m.gguf bash scripts/termux/start.sh`
+のように切り替えられます。発熱が続くと Android が性能を落とすので、
+長いバックグラウンドタスクを回すときはケースを外す・充電しながらにする
+のがおすすめです。
 
 ## 起動
 

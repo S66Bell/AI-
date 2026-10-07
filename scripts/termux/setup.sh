@@ -17,12 +17,22 @@ MODELS="$HOME/models"
 mkdir -p "$MODELS"
 
 # Pick a model. Qwen2.5 Instruct models are small, support tool calling, and
-# handle Japanese well. Override with:  JARVIS_MODEL_SIZE=1.5b|3b|7b
-SIZE="${JARVIS_MODEL_SIZE:-3b}"
+# handle Japanese well. The size is chosen from the phone's RAM unless you
+# override it with:  JARVIS_MODEL_SIZE=1.5b|3b|7b
+RAM_MB="$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo 2>/dev/null || echo 0)"
+if [ -z "${JARVIS_MODEL_SIZE:-}" ]; then
+  if   [ "$RAM_MB" -ge 10000 ]; then JARVIS_MODEL_SIZE=7b     # e.g. Galaxy S26 (12GB)
+  elif [ "$RAM_MB" -ge 5500 ];  then JARVIS_MODEL_SIZE=3b
+  else                               JARVIS_MODEL_SIZE=1.5b
+  fi
+  echo "==> Detected ${RAM_MB}MB RAM → model size $JARVIS_MODEL_SIZE (override with JARVIS_MODEL_SIZE=...)"
+fi
+SIZE="$JARVIS_MODEL_SIZE"
 case "$SIZE" in
-  1.5b) FILE="qwen2.5-1.5b-instruct-q4_k_m.gguf"; REPO="Qwen/Qwen2.5-1.5B-Instruct-GGUF" ;;
-  3b)   FILE="qwen2.5-3b-instruct-q4_k_m.gguf";   REPO="Qwen/Qwen2.5-3B-Instruct-GGUF" ;;
-  7b)   FILE="qwen2.5-7b-instruct-q4_k_m.gguf";   REPO="Qwen/Qwen2.5-7B-Instruct-GGUF" ;;
+  1.5b) FILE="qwen2.5-1.5b-instruct-q4_k_m.gguf"; REPO="Qwen/Qwen2.5-1.5B-Instruct-GGUF" ;;   # ~1.1GB
+  3b)   FILE="qwen2.5-3b-instruct-q4_k_m.gguf";   REPO="Qwen/Qwen2.5-3B-Instruct-GGUF" ;;     # ~2.0GB
+  # The official 7B GGUF is split in two files; bartowski's is a single file.
+  7b)   FILE="Qwen2.5-7B-Instruct-Q4_K_M.gguf";   REPO="bartowski/Qwen2.5-7B-Instruct-GGUF" ;; # ~4.7GB
   *) echo "Unknown JARVIS_MODEL_SIZE=$SIZE (use 1.5b, 3b or 7b)"; exit 1 ;;
 esac
 URL="https://huggingface.co/$REPO/resolve/main/$FILE"
@@ -33,7 +43,9 @@ pkg install -y python git curl termux-api clang cmake make
 
 echo "==> Installing llama.cpp"
 if ! command -v llama-server >/dev/null 2>&1; then
-  if pkg install -y llama-cpp 2>/dev/null; then
+  # Termux ships a prebuilt package (CPU). For GPU offload on Adreno phones
+  # you can additionally try:  pkg install llama-cpp-backend-vulkan
+  if pkg install -y llama-cpp; then
     echo "    installed from the Termux repo"
   else
     echo "    building from source (this takes a while on a phone)"

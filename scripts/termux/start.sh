@@ -12,7 +12,13 @@ if [ -z "$MODEL_PATH" ] || [ ! -f "$MODEL_PATH" ]; then
 fi
 PORT="${JARVIS_LLM_PORT:-8080}"
 CTX="${JARVIS_CTX:-8192}"
-THREADS="${JARVIS_THREADS:-$(( $(nproc) > 4 ? 4 : $(nproc) ))}"
+# Use the performance cores only: on a 8–10 core phone the efficiency cores
+# slow generation down if llama.cpp spreads across all of them.
+NPROC="$(nproc)"
+if [ -z "${JARVIS_THREADS:-}" ]; then
+  if [ "$NPROC" -ge 8 ]; then JARVIS_THREADS=6; elif [ "$NPROC" -ge 4 ]; then JARVIS_THREADS=4; else JARVIS_THREADS="$NPROC"; fi
+fi
+THREADS="$JARVIS_THREADS"
 LOG="$HOME/.jarvis/llama-server.log"
 mkdir -p "$HOME/.jarvis"
 
