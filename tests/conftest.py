@@ -81,6 +81,11 @@ class FakeModel:
     def script(self, payload: dict) -> list[dict]:
         msgs = payload["messages"]
         last = msgs[-1]
+        system = msgs[0]["content"] if msgs and msgs[0]["role"] == "system" else ""
+        if "記憶整理係" in system:
+            if "要約" in system and "統合" in system:
+                return self._text("要約: ユーザーはテストを続けている。")
+            return self._text('["ユーザーの名前はゆうき", "コーヒーが好き"]')
         if last["role"] == "tool":
             if last.get("name") == "finish_task":
                 return self._text("Filed.")

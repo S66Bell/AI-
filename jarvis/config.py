@@ -60,6 +60,9 @@ class Config:
     agent_max_steps: int
     agent_allow_dangerous: bool
     agent_self_check: bool
+    # Learning (memory reflection).
+    reflect_enabled: bool
+    reflect_every: int
 
     @property
     def is_openai_compat(self) -> bool:
@@ -113,4 +116,6 @@ class Config:
             agent_max_steps=int(os.environ.get("JARVIS_AGENT_MAX_STEPS", "40")),
             agent_allow_dangerous=_bool("JARVIS_AGENT_ALLOW_DANGEROUS", False),
             agent_self_check=_bool("JARVIS_AGENT_SELF_CHECK", True),
+            reflect_enabled=_bool("JARVIS_LEARN", True),
+            reflect_every=int(os.environ.get("JARVIS_LEARN_EVERY", "3")),
         )

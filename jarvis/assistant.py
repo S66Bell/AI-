@@ -27,9 +27,11 @@ class Assistant:
         notify: Callable[[str], None] = lambda _m: None,
         on_thinking: Callable[[str], None] | None = None,
         runner=None,
+        learner=None,
     ):
         self.config = config
         self.memory = memory
+        self.learner = learner
 
         # The local backend needs its own web tools; Claude uses server-side ones.
         self.registry = build_registry(config, include_web=config.is_local)
@@ -48,7 +50,9 @@ class Assistant:
             self.registry,
             self.tool_ctx,
             memory,
-            system_fn=lambda: build_system_prompt(config, memory.facts_as_text()),
+            system_fn=lambda: build_system_prompt(
+                config, memory.facts_as_text(), memory.load_summary()
+            ),
             emit=emit,
             notify=notify,
             on_thinking=on_thinking,
@@ -67,6 +71,8 @@ class Assistant:
         self.memory.append_turn("user", user_input)
         reply = self.backend.run_turn(user_input)
         self.memory.append_turn("assistant", reply)
+        if self.learner is not None:
+            self.learner.note_turn()
         return reply
 
     def reset(self) -> None:

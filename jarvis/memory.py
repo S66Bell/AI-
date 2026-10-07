@@ -20,11 +20,15 @@ from pathlib import Path
 
 
 class Memory:
-    def __init__(self, data_dir: Path, history_turns: int = 40):
+    def __init__(self, data_dir: Path, history_turns: int = 40, summary_after: int = 80):
         self.data_dir = data_dir
         self.history_path = data_dir / "conversation.jsonl"
         self.facts_path = data_dir / "memory.json"
+        self.summary_path = data_dir / "summary.txt"
         self.history_turns = history_turns
+        # When the transcript has more rows than this, old turns get folded
+        # into the rolling summary (see learning.py).
+        self.summary_after = summary_after
 
     # ── Long-term facts ────────────────────────────────────────────────
     def load_facts(self) -> list[dict]:
@@ -35,9 +39,13 @@ class Memory:
         except (json.JSONDecodeError, OSError):
             return []
 
-    def remember(self, fact: str) -> str:
+    def remember(self, fact: str, source: str = "user") -> str:
         facts = self.load_facts()
-        entry = {"fact": fact.strip(), "added": datetime.now().isoformat(timespec="seconds")}
+        entry = {
+            "fact": fact.strip(),
+            "added": datetime.now().isoformat(timespec="seconds"),
+            "source": source,
+        }
         facts.append(entry)
         self.facts_path.write_text(json.dumps(facts, indent=2, ensure_ascii=False))
         return f"Noted and remembered: {fact.strip()}"
@@ -51,6 +59,27 @@ class Memory:
         if removed == 0:
             return f"No remembered facts matched '{query}'."
         return f"Forgot {removed} remembered fact(s) matching '{query}'."
+
+    def has_similar_fact(self, fact: str) -> bool:
+        """Cheap duplicate check: identical or one contains the other."""
+        q = _norm(fact)
+        if not q:
+            return True
+        for f in self.load_facts():
+            k = _norm(f.get("fact", ""))
+            if q == k or (len(q) > 6 and (q in k or k in q)):
+                return True
+        return False
+
+    # ── Rolling summary of older conversation ──────────────────────────
+    def load_summary(self) -> str:
+        try:
+            return self.summary_path.read_text(encoding="utf-8").strip()
+        except OSError:
+            return ""
+
+    def save_summary(self, text: str) -> None:
+        self.summary_path.write_text(text.strip() + "\n", encoding="utf-8")
 
     def facts_as_text(self) -> str:
         facts = self.load_facts()
@@ -116,7 +145,19 @@ class Memory:
             return []
         return rows[-limit:]
 
+    def rewrite_history(self, rows: list[dict]) -> None:
+        """Replace the transcript with ``rows`` (used after summarising)."""
+        tmp = self.history_path.with_suffix(".tmp")
+        with tmp.open("w", encoding="utf-8") as fh:
+            for row in rows:
+                fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+        tmp.replace(self.history_path)
+
     def clear_history(self) -> str:
         if self.history_path.exists():
             self.history_path.unlink()
         return "Conversation history cleared."
+
+
+def _norm(text: str) -> str:
+    return "".join(ch for ch in text.lower() if ch.isalnum())

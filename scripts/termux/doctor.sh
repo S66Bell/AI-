@@ -45,6 +45,9 @@ echo
 echo "--- processes"
 ps -ef 2>/dev/null | grep -E "llama-server|jarvis" | grep -v grep | sed 's/^/  /' || true
 echo
+echo "--- web log (last 25 lines)"
+tail -n 25 "$HOME/.jarvis/web.log" 2>/dev/null | sed 's/^/  /' || echo "  <no log>"
+echo
 echo "--- llama-server log (last 25 lines)"
 tail -n 25 "$HOME/.jarvis/llama-server.log" 2>/dev/null | sed 's/^/  /' || echo "  <no log>"
 echo

@@ -14,7 +14,7 @@ def _user_ref(config: Config) -> str:
     return name if name and name.lower() not in ("sir", "user") else "ユーザー"
 
 
-def build_system_prompt(config: Config, long_term_memory: str = "") -> str:
+def build_system_prompt(config: Config, long_term_memory: str = "", summary: str = "") -> str:
     """Assemble the system prompt that defines who MIRA is.
 
     The stable persona comes first so it caches well; the volatile bits
@@ -64,6 +64,12 @@ def build_system_prompt(config: Config, long_term_memory: str = "") -> str:
 動作環境: {platform.system()} {platform.release()} ({platform.machine()})
 """
 
+    if summary.strip():
+        context += f"""
+── これまでの会話の要約 ──
+{summary.strip()}
+"""
+
     if long_term_memory.strip():
         context += f"""
 ── {user} について覚えていること ──
@@ -73,13 +79,13 @@ def build_system_prompt(config: Config, long_term_memory: str = "") -> str:
     return persona + context
 
 
-def build_agent_prompt(config: Config, long_term_memory: str = "") -> str:
+def build_agent_prompt(config: Config, long_term_memory: str = "", summary: str = "") -> str:
     """System prompt for autonomous background tasks.
 
     Same persona, plus explicit instructions for working alone: plan, act with
     tools, verify, and file one final report via ``finish_task``.
     """
-    base = build_system_prompt(config, long_term_memory)
+    base = build_system_prompt(config, long_term_memory, summary)
     user = _user_ref(config)
     agent = f"""
 

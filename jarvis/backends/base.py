@@ -49,6 +49,15 @@ class Backend(ABC):
     def cancelled(self) -> bool:
         return bool(self.should_stop and self.should_stop())
 
+    def cancel(self) -> None:
+        """Abort an in-flight model request, if the backend supports it."""
+        resp = getattr(self, "_active_resp", None)
+        if resp is not None:
+            try:
+                resp.close()
+            except Exception:
+                pass
+
     @abstractmethod
     def run_turn(self, user_input: str) -> str:
         """Process one user turn end-to-end and return the final reply text."""

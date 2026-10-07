@@ -107,44 +107,50 @@ class OpenAICompatBackend(Backend):
         content_parts: list[str] = []
         # index -> partial call being assembled from streamed fragments
         partial: dict[int, dict] = {}
+        self._active_resp = resp
 
-        for raw in resp.iter_lines():
-            if not raw:
-                continue
-            line = raw.decode("utf-8", "replace") if isinstance(raw, bytes) else raw
-            if not line.startswith("data:"):
-                continue
-            data = line[5:].strip()
-            if data == "[DONE]":
-                break
-            try:
-                chunk = json.loads(data)
-            except json.JSONDecodeError:
-                continue
-            if "error" in chunk:
-                err = chunk["error"]
-                raise OpenAICompatError(err.get("message", str(err)) if isinstance(err, dict) else str(err))
+        try:
+            for raw in resp.iter_lines():
+                if not raw:
+                    continue
+                line = raw.decode("utf-8", "replace") if isinstance(raw, bytes) else raw
+                if not line.startswith("data:"):
+                    continue
+                data = line[5:].strip()
+                if data == "[DONE]":
+                    break
+                try:
+                    chunk = json.loads(data)
+                except json.JSONDecodeError:
+                    continue
+                if "error" in chunk:
+                    err = chunk["error"]
+                    raise OpenAICompatError(err.get("message", str(err)) if isinstance(err, dict) else str(err))
 
-            for choice in chunk.get("choices") or []:
-                delta = choice.get("delta") or {}
-                reasoning = delta.get("reasoning_content") or delta.get("reasoning")
-                if reasoning and self.on_thinking is not None:
-                    self.on_thinking(reasoning)
-                text = delta.get("content")
-                if text:
-                    content_parts.append(text)
-                    self.emit(text)
-                for tc in delta.get("tool_calls") or []:
-                    idx = tc.get("index", len(partial))
-                    slot = partial.setdefault(idx, {"id": None, "name": "", "arguments": ""})
-                    if tc.get("id"):
-                        slot["id"] = tc["id"]
-                    fn = tc.get("function") or {}
-                    if fn.get("name"):
-                        slot["name"] += fn["name"]
-                    if fn.get("arguments"):
-                        args = fn["arguments"]
-                        slot["arguments"] += args if isinstance(args, str) else json.dumps(args)
+                for choice in chunk.get("choices") or []:
+                    delta = choice.get("delta") or {}
+                    reasoning = delta.get("reasoning_content") or delta.get("reasoning")
+                    if reasoning and self.on_thinking is not None:
+                        self.on_thinking(reasoning)
+                    text = delta.get("content")
+                    if text:
+                        content_parts.append(text)
+                        self.emit(text)
+                    for tc in delta.get("tool_calls") or []:
+                        idx = tc.get("index", len(partial))
+                        slot = partial.setdefault(idx, {"id": None, "name": "", "arguments": ""})
+                        if tc.get("id"):
+                            slot["id"] = tc["id"]
+                        fn = tc.get("function") or {}
+                        if fn.get("name"):
+                            slot["name"] += fn["name"]
+                        if fn.get("arguments"):
+                            args = fn["arguments"]
+                            slot["arguments"] += args if isinstance(args, str) else json.dumps(args)
+        except requests.RequestException as exc:
+            raise OpenAICompatError(f"Model stream interrupted: {exc}") from exc
+        finally:
+            self._active_resp = None
 
         tool_calls = [
             normalise_call(slot["name"], slot["arguments"], slot["id"])

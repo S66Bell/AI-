@@ -242,7 +242,9 @@ class TaskRunner:
                 registry,
                 tool_ctx,
                 self.memory,
-                system_fn=lambda: build_agent_prompt(self.config, self.memory.facts_as_text()),
+                system_fn=lambda: build_agent_prompt(
+                    self.config, self.memory.facts_as_text(), self.memory.load_summary()
+                ),
                 emit=lambda chunk: self._log(task, "text", chunk),
                 notify=notify,
                 on_thinking=None,

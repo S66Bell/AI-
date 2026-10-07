@@ -95,27 +95,33 @@ class OllamaBackend(Backend):
         except requests.RequestException as exc:
             raise OllamaError(f"Ollama request failed: {exc}") from exc
 
-        for line in resp.iter_lines():
-            if not line:
-                continue
-            try:
-                chunk = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if "error" in chunk:
-                raise OllamaError(chunk["error"])
+        self._active_resp = resp
+        try:
+            for line in resp.iter_lines():
+                if not line:
+                    continue
+                try:
+                    chunk = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if "error" in chunk:
+                    raise OllamaError(chunk["error"])
 
-            msg = chunk.get("message") or {}
-            if msg.get("thinking") and self.on_thinking is not None:
-                self.on_thinking(msg["thinking"])
-            text = msg.get("content")
-            if text:
-                content_parts.append(text)
-                self.emit(text)
-            for call in msg.get("tool_calls") or []:
-                tool_calls.append(call)
-            if chunk.get("done"):
-                break
+                msg = chunk.get("message") or {}
+                if msg.get("thinking") and self.on_thinking is not None:
+                    self.on_thinking(msg["thinking"])
+                text = msg.get("content")
+                if text:
+                    content_parts.append(text)
+                    self.emit(text)
+                for call in msg.get("tool_calls") or []:
+                    tool_calls.append(call)
+                if chunk.get("done"):
+                    break
+        except requests.RequestException as exc:
+            raise OllamaError(f"Ollama stream interrupted: {exc}") from exc
+        finally:
+            self._active_resp = None
 
         return {"content": "".join(content_parts), "tool_calls": tool_calls}
 

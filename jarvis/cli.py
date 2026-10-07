@@ -10,6 +10,7 @@ from rich.text import Text
 
 from .assistant import Assistant
 from .config import Config
+from .learning import Learner
 from .memory import Memory
 
 HELP = """\
@@ -83,6 +84,7 @@ class CLI:
                 confirm=self._confirm,
                 notify=self.emitter.status,
                 on_thinking=self._on_thinking if self.show_thinking else None,
+                learner=Learner(self.config, self.memory),
             )
             return True
         except Exception as exc:  # e.g. Ollama not running / model not pulled

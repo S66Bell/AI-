@@ -92,6 +92,7 @@ textarea::placeholder{color:var(--muted)}
 .btn.sec{background:var(--glass-strong);color:var(--text);border:1px solid var(--glass-border);box-shadow:var(--shadow)}
 .btn.icon{width:44px;height:44px;padding:0;display:flex;align-items:center;justify-content:center;font-size:18px;border-radius:50%}
 .btn:disabled{opacity:.5}
+.btn.stop{background:linear-gradient(135deg,var(--a3),#ff8f6b)}
 .btn.rec{background:linear-gradient(135deg,var(--a3),#ff8f6b);color:#fff;animation:breathe 1s ease-in-out infinite}
 /* cards / forms */
 .card{background:var(--glass-strong);border:1px solid var(--glass-border);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-radius:18px;padding:12px 14px;margin:10px 0;box-shadow:var(--shadow);animation:pop .22s ease-out}
@@ -147,6 +148,7 @@ textarea::placeholder{color:var(--muted)}
       <button class="btn icon sec" id="mic" title="音声入力">🎤</button>
       <textarea id="input" rows="1" placeholder="メッセージ" enterkeyhint="send"></textarea>
       <button class="btn icon" id="send" title="送信">➤</button>
+      <button class="btn icon stop" id="stop" title="止める" style="display:none">■</button>
     </div>
   </section>
   <!-- tasks -->
@@ -180,6 +182,7 @@ textarea::placeholder{color:var(--muted)}
       <div class="row">
         <label class="toggle"><input type="checkbox" id="tts"> 返事を読み上げる</label>
         <span style="flex:1"></span>
+        <button class="btn sec" id="learnNow">今の会話から学習</button>
         <button class="btn sec" id="resetCtx">会話をリセット</button>
       </div>
     </div>
@@ -271,11 +274,21 @@ async function loadHistory() {
     }
   } catch (e) {}
 }
-let sending = false;
+let sending = false, aborter = null;
+const stopBtn = $('#stop');
+const WATCHDOG_MS = 240000; // abort if nothing arrives for 4 minutes
+function setSending(on) {
+  sending = on; send.disabled = on;
+  send.style.display = on ? 'none' : ''; stopBtn.style.display = on ? '' : 'none';
+}
+stopBtn.onclick = async () => {
+  try { await api('/api/chat/cancel', {method: 'POST'}); } catch (e) {}
+  if (aborter) aborter.abort();
+};
 async function sendMessage() {
   const text = input.value.trim();
   if (!text || sending) return;
-  sending = true; send.disabled = true; input.value = ''; autoGrow();
+  setSending(true); input.value = ''; autoGrow();
   addMsg('user', text);
   let bot = null, buf = '', thinkEl = null;
   const ensureBot = () => { if (!bot) { bot = addMsg('bot', ''); } return bot; };
@@ -284,12 +297,16 @@ async function sendMessage() {
   const t0 = Date.now();
   const waitTimer = setInterval(() => { wait.textContent = `考え中… ${Math.round((Date.now() - t0) / 1000)}秒`; }, 500);
   const stopWait = () => { clearInterval(waitTimer); wait.remove(); };
+  aborter = new AbortController();
+  let watchdog = setTimeout(() => aborter.abort('timeout'), WATCHDOG_MS);
+  const kick = () => { clearTimeout(watchdog); watchdog = setTimeout(() => aborter.abort('timeout'), WATCHDOG_MS); };
   try {
-    const r = await fetch('/api/chat', {method: 'POST', headers: Object.assign({'Content-Type': 'application/json'}, headers()), body: JSON.stringify({message: text})});
+    const r = await fetch('/api/chat', {method: 'POST', signal: aborter.signal, headers: Object.assign({'Content-Type': 'application/json'}, headers()), body: JSON.stringify({message: text})});
     if (r.status === 401) { askToken(); return; }
     const reader = r.body.getReader(), dec = new TextDecoder(); let pending = '';
     while (true) {
       const {value, done} = await reader.read(); if (done) break;
+      kick();
       pending += dec.decode(value, {stream: true});
       let i;
       while ((i = pending.indexOf('\n\n')) >= 0) {
@@ -307,8 +324,11 @@ async function sendMessage() {
         else if (ev === 'done') { if (payload.reply && !buf) { ensureBot().querySelector('.md').innerHTML = md(payload.reply); buf = payload.reply; } if ($('#tts').checked && buf) speak(buf); }
       }
     }
-  } catch (e) { addError('通信エラー: ' + e.message); }
-  finally { stopWait(); sending = false; send.disabled = false; loadState(); }
+  } catch (e) {
+    if (aborter.signal.aborted) { addError(aborter.signal.reason === 'timeout' ? '4分間応答がなかったので中断したよ。もう一度送ってみて。' : '止めたよ。'); try { await api('/api/chat/cancel', {method: 'POST'}); } catch (_) {} }
+    else addError('通信エラー: ' + e.message);
+  }
+  finally { clearTimeout(watchdog); stopWait(); aborter = null; setSending(false); loadState(); }
 }
 send.onclick = sendMessage;
 input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && window.matchMedia('(min-width: 700px)').matches) { e.preventDefault(); sendMessage(); } });
@@ -413,16 +433,18 @@ $('#schedAdd').onclick = async () => {
 };
 // ── memory ───────────────────────────────────────────────────
 async function loadMemory() {
-  const {facts} = await api('/api/memory'); const el = $('#memory'); el.innerHTML = '';
-  if (!facts.length) { el.innerHTML = '<div class="empty">まだ何も覚えていません</div>'; return; }
+  const {facts, summary} = await api('/api/memory'); const el = $('#memory'); el.innerHTML = '';
+  if (summary) { const c = document.createElement('div'); c.className = 'card'; c.innerHTML = '<div class="meta">これまでの会話の要約</div><div class="title" style="font-weight:400;white-space:pre-wrap">' + esc(summary) + '</div>'; el.appendChild(c); }
+  if (!facts.length) { el.innerHTML += '<div class="empty"><div class="orb"></div>まだ何も覚えていないよ。会話するうちに自動で覚えていくから、しばらく話してみて</div>'; return; }
   for (const f of facts) {
     const c = document.createElement('div'); c.className = 'card';
-    c.innerHTML = `<div class="title">${esc(f.fact)}</div><div class="meta">${esc((f.added || '').replace('T', ' '))}</div><div class="actions"><button class="btn sec">忘れる</button></div>`;
+    c.innerHTML = `<div class="title">${esc(f.fact)}</div><div class="meta">${esc((f.added || '').replace('T', ' '))}${f.source === 'auto' ? ' · 会話から自動で記憶' : ''}</div><div class="actions"><button class="btn sec">忘れる</button></div>`;
     c.querySelector('button').onclick = async () => { await api('/api/memory/forget', {method: 'POST', body: {query: f.fact}}); loadMemory(); };
     el.appendChild(c);
   }
 }
 $('#factAdd').onclick = async () => { const fact = $('#factInput').value.trim(); if (!fact) return; await api('/api/memory', {method: 'POST', body: {fact}}); $('#factInput').value = ''; loadMemory(); };
+$('#learnNow').onclick = async () => { await api('/api/learn', {method: 'POST'}); alert('バックグラウンドで整理中。少ししたら「記憶」を開き直してね'); };
 $('#resetCtx').onclick = async () => { if (confirm('会話の文脈をリセットしますか?(記憶は残ります)')) { await api('/api/reset', {method: 'POST'}); addStatus('会話をリセットしました'); } };
 // ── boot ─────────────────────────────────────────────────────
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});

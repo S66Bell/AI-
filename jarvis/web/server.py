@@ -26,7 +26,9 @@ import json
 import mimetypes
 import queue
 import threading
+import time
 import uuid
+from datetime import datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -36,6 +38,7 @@ from .. import __version__
 from ..agent import TaskRunner
 from ..assistant import Assistant
 from ..config import Config
+from ..learning import Learner
 from ..memory import Memory
 from ..scheduler import Scheduler
 
@@ -59,19 +62,31 @@ class JarvisWeb:
     def __init__(self, config: Config, memory: Memory | None = None):
         self.config = config
         self.memory = memory or Memory(config.data_dir)
+        self.log_path = config.data_dir / "web.log"
         self.runner = TaskRunner(config, self.memory)
         self.scheduler = Scheduler(self.runner, config.data_dir)
         self.scheduler.start()
+        self.learner = Learner(config, self.memory, log=self.log)
+        self._turn_started: float | None = None
 
         self.assistant: Assistant | None = None
         self.backend_error: str | None = None
         self._chat_lock = threading.Lock()
+        self._cancel_requested = False
         self._sink_local = threading.local()
         self._pending: dict[str, dict] = {}
         self._pending_lock = threading.Lock()
         self._event_clients: list[queue.Queue] = []
         self._event_lock = threading.Lock()
         self.runner.subscribe(self._on_task_event)
+
+    def log(self, msg: str) -> None:
+        """Append a timestamped line to ~/.jarvis/web.log (for doctor.sh)."""
+        try:
+            with self.log_path.open("a", encoding="utf-8") as fh:
+                fh.write(f"{datetime.now().isoformat(timespec='seconds')} {msg}\n")
+        except OSError:
+            pass
 
     # ── assistant wiring ───────────────────────────────────────────────
     def _sink(self) -> _Sink | None:
@@ -83,6 +98,7 @@ class JarvisWeb:
             sink.event("text", chunk)
 
     def _notify(self, msg: str) -> None:
+        self.log(f"  {msg}")
         sink = self._sink()
         if sink:
             sink.event("status", msg)
@@ -127,6 +143,7 @@ class JarvisWeb:
                 notify=self._notify,
                 on_thinking=self._thinking if self.config.show_thinking else None,
                 runner=self.runner,
+                learner=self.learner,
             )
             self.backend_error = None
         except Exception as exc:  # model server down, model missing, ...
@@ -140,22 +157,44 @@ class JarvisWeb:
             sink.event("error", "まだ前のメッセージに返事してる途中だよ。ちょっと待ってね。")
             sink.event("done", {"reply": ""})
             return
+        started = time.monotonic()
+        self._turn_started = started
+        self.log(f"chat start: {message[:80]!r}")
         try:
             self._sink_local.sink = sink
             assistant = self.ensure_assistant()
             if assistant is None:
+                self.log(f"chat failed: backend unavailable: {self.backend_error}")
                 sink.event("error", self.backend_error or "Model backend unavailable.")
                 sink.event("done", {"reply": ""})
                 return
+            assistant.backend.should_stop = lambda: self._cancel_requested
+            self._cancel_requested = False
             try:
                 reply = assistant.chat(message)
+                self.log(f"chat done in {time.monotonic() - started:.1f}s ({len(reply)} chars)")
                 sink.event("done", {"reply": reply})
             except Exception as exc:
-                sink.event("error", f"{type(exc).__name__}: {exc}")
+                self.log(f"chat error after {time.monotonic() - started:.1f}s: {type(exc).__name__}: {exc}")
+                if self._cancel_requested:
+                    sink.event("error", "止めたよ。")
+                else:
+                    sink.event("error", f"{type(exc).__name__}: {exc}")
                 sink.event("done", {"reply": ""})
         finally:
             self._sink_local.sink = None
+            self._turn_started = None
             self._chat_lock.release()
+
+    def cancel_chat(self) -> bool:
+        """Stop the turn in progress (closes the model stream)."""
+        if not self._chat_lock.locked():
+            return False
+        self._cancel_requested = True
+        if self.assistant is not None:
+            self.assistant.backend.cancel()
+        self.log("chat cancel requested")
+        return True
 
     def reset(self) -> None:
         if self.assistant is not None:
@@ -199,6 +238,8 @@ class JarvisWeb:
             "ready": ready,
             "error": self.backend_error,
             "busy": self._chat_lock.locked(),
+            "busy_seconds": round(time.monotonic() - self._turn_started) if self._turn_started else 0,
+            "learning": self.learner.last_result,
             "version": __version__,
             "auth": bool(self.config.web_token),
         }
@@ -292,7 +333,7 @@ def _make_handler(app: JarvisWeb):
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
-            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Cache-Control", "no-store" if path.suffix in (".html", ".js") else "no-cache")
             self.end_headers()
             self.wfile.write(body)
 
@@ -318,7 +359,10 @@ def _make_handler(app: JarvisWeb):
                 limit = int(query.get("limit", ["60"])[0])
                 return self._json(HTTPStatus.OK, {"rows": app.memory.recent_rows(limit)})
             if path == "/api/memory":
-                return self._json(HTTPStatus.OK, {"facts": app.memory.load_facts()})
+                return self._json(
+                    HTTPStatus.OK,
+                    {"facts": app.memory.load_facts(), "summary": app.memory.load_summary()},
+                )
             if path == "/api/tasks":
                 limit = int(query.get("limit", ["50"])[0])
                 return self._json(
@@ -359,6 +403,11 @@ def _make_handler(app: JarvisWeb):
                 except (BrokenPipeError, ConnectionResetError):
                     pass
                 return
+            if path == "/api/chat/cancel":
+                return self._json(HTTPStatus.OK, {"ok": app.cancel_chat()})
+            if path == "/api/learn":
+                app.learner.request("reflect")
+                return self._json(HTTPStatus.OK, {"ok": True})
             if path == "/api/confirm":
                 ok = app.answer_confirm(str(body.get("id", "")), bool(body.get("approved")))
                 return self._json(HTTPStatus.OK if ok else HTTPStatus.NOT_FOUND, {"ok": ok})
