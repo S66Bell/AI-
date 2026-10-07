@@ -40,11 +40,12 @@ else
   # when something earlier in the prompt changed: the difference between
   # re-reading a few hundred tokens and the whole conversation every turn.
   EXTRA=""
-  llama-server --help 2>&1 | grep -q -- "--cache-reuse" && EXTRA="--cache-reuse 256"
+  "$LLAMA_SERVER" --help 2>&1 | grep -q -- "--cache-reuse" && EXTRA="--cache-reuse 256"
+  echo "    using $LLAMA_SERVER"
   # -np 1: one slot. Several slots would process requests concurrently on a
   # phone CPU (each one crawling) and each slot has its own cache, so the
   # chat kept landing on a cold slot and re-reading the whole prompt.
-  llama-server -m "$MODEL_PATH" --host 127.0.0.1 --port "$PORT" \
+  "$LLAMA_SERVER" -m "$MODEL_PATH" --host 127.0.0.1 --port "$PORT" \
     -c "$CTX" -t "$THREADS" -np 1 --jinja $EXTRA >"$LOG" 2>&1 &
   LLM_PID=$!
   for i in $(seq 1 120); do
