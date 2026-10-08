@@ -69,18 +69,29 @@ bash scripts/mac/install-service.sh
 
 ## 外出先から使う(Tailscale)
 
-[Tailscale](https://tailscale.com/)(個人利用は無料)を Mac とスマホに入れて同じ
-アカウントでログインすると、どこからでも `http://<Macの名前>:8765` でつながります。
-ポート開放は不要です。
+[Tailscale](https://tailscale.com/)(個人利用は無料)で、ポート開放なしに、
+あなたのアカウントでログインした端末だけが MIRA に届くようにします。通信は
+端末間で暗号化され、HTTPS になるのでスマホの**マイク入力とホーム画面アプリ化**も
+使えます。LAN からの直接接続は閉じるので、これが最も安全な使い方です。
 
-さらに Mac で次を実行すると HTTPS になり、スマホで**マイク(音声入力)と
-ホーム画面アプリ化**が使えるようになります(どちらもブラウザの仕様で HTTPS が必要)。
+1. スマホに Tailscale アプリ(Play ストア / App Store)を入れて、Google や GitHub
+   などでログイン(アカウントは Mac と同じものを使う)
+2. Mac で次を実行(Tailscale のインストール → ログイン案内 → HTTPS 配信 → LAN を閉じる)
 
 ```bash
-tailscale serve --bg 8765
+bash scripts/mac/tailscale.sh
 ```
 
-表示された `https://<Macの名前>.<tailnet>.ts.net` をスマホで開いてください。
+   初回はログインを求められるので、メニューバーの Tailscale からログインして、
+   もう一度同じコマンドを実行します。
+3. 表示された `https://<Macの名前>.<tailnet>.ts.net/` をスマホで開き、トークンを入力。
+   Chrome のメニューから「ホーム画面に追加」すると、アプリのように使えます。
+4. `bash scripts/mac/start.sh` で再起動(常駐サービスにしていれば自動)
+
+やめるときは `bash scripts/mac/tailscale.sh off`(LAN からの接続を再び許可)。
+
+「HTTPS Certificates」のエラーが出たら、<https://login.tailscale.com/admin/dns> で
+MagicDNS と HTTPS Certificates を有効にして、スクリプトをもう一度実行してください。
 
 ## セキュリティ
 
