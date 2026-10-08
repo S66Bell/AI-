@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>MIRA 設計書</title>
+<style>
+@page { size: A4; margin: 18mm 16mm 18mm 16mm; }
+:root{ --ink:#1b2440; --muted:#5b6782; --line:#d6dbe8; --blue:#4f86ff; --purple:#7a63ff; --pink:#ff6fb5; --teal:#2fb8d6; --green:#2fbf8a; --amber:#f0a929; --red:#e5566a; --bg:#f4f6fb; }
+*{box-sizing:border-box}
+body{font-family:"IPAPGothic","IPAGothic","Hiragino Sans","Noto Sans JP",sans-serif;color:var(--ink);font-size:10.5pt;line-height:1.75;margin:0}
+h1{font-size:22pt;margin:0 0 4mm;letter-spacing:.02em}
+h2{font-size:15pt;margin:0 0 4mm;padding-bottom:2mm;border-bottom:2px solid var(--blue);page-break-after:avoid}
+h3{font-size:11.5pt;margin:5mm 0 2mm;color:var(--purple);page-break-after:avoid}
+p{margin:0 0 3mm}
+.page{page-break-after:always}
+.page:last-child{page-break-after:auto}
+.cover{height:250mm;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:6mm}
+.cover .kicker{color:var(--muted);letter-spacing:.3em;font-size:10pt}
+.cover h1{font-size:34pt;line-height:1.2}
+.cover .sub{font-size:13pt;color:var(--muted)}
+.cover .meta{margin-top:12mm;color:var(--muted);font-size:9.5pt;border-top:1px solid var(--line);padding-top:3mm}
+.lead{background:var(--bg);border-left:4px solid var(--blue);padding:3mm 4mm;border-radius:2mm;margin:0 0 4mm}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:4mm}
+.card{border:1px solid var(--line);border-radius:3mm;padding:3mm 4mm;background:#fff;page-break-inside:avoid}
+.card b{display:block;color:var(--purple);margin-bottom:1mm}
+table{width:100%;border-collapse:collapse;margin:2mm 0 4mm;font-size:9.5pt}
+tr{page-break-inside:avoid}
+thead{display:table-header-group}
+th,td{border:1px solid var(--line);padding:1.3mm 2.2mm;vertical-align:top;text-align:left;line-height:1.55}
+th{background:var(--bg);font-weight:bold}
+code{font-family:Menlo,Consolas,monospace;font-size:9pt;background:#eef1f8;padding:0 1mm;border-radius:1mm}
+pre{font-family:Menlo,Consolas,monospace;font-size:9pt;background:#101628;color:#e9edf7;padding:3mm 4mm;border-radius:2mm;white-space:pre-wrap;margin:1mm 0 3mm}
+ul,ol{margin:0 0 3mm;padding-left:6mm}
+li{margin-bottom:.8mm}
+.fig{margin:3mm 0 4mm;page-break-inside:avoid}
+.fig svg{width:100%;height:auto;display:block}
+.cap{font-size:9pt;color:var(--muted);text-align:center;margin-top:1.5mm}
+.toc li{margin-bottom:1.2mm}
+.note{font-size:9.3pt;color:var(--muted)}
+.badge{display:inline-block;padding:0 2mm;border-radius:999px;font-size:8.5pt;color:#fff;background:var(--blue);margin-right:1mm}
+.badge.g{background:var(--green)} .badge.a{background:var(--amber)} .badge.r{background:var(--red)} .badge.p{background:var(--purple)}
+footer{position:fixed;bottom:-10mm;left:0;right:0;font-size:8.5pt;color:var(--muted);text-align:center}
+</style>
+</head>
+<body>
+
+<!-- ───────────── 表紙 ───────────── -->
+<section class="page cover">
+  <div class="kicker">SYSTEM DESIGN DOCUMENT</div>
+  <h1>MIRA<br><span style="font-size:18pt;color:var(--muted)">自分だけのパーソナル AI アシスタント</span></h1>
+  <div class="sub">概念図と設計書 ― Mac で動かし、スマホからどこでも安全に使う構成</div>
+  <svg viewBox="0 0 520 120" style="width:120mm;margin-top:6mm">
+    <defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b8cff"/><stop offset=".5" stop-color="#8a6cff"/><stop offset="1" stop-color="#ff6fb5"/></linearGradient></defs>
+    <circle cx="60" cy="60" r="44" fill="url(#g1)"/><circle cx="46" cy="44" r="16" fill="#fff" opacity=".55"/>
+    <text x="125" y="52" font-size="26" fill="#1b2440" font-weight="bold">MIRA</text>
+    <text x="125" y="80" font-size="12" fill="#5b6782">ゆうき専用 / 親友みたいに話す / 自分で動くエージェント</text>
+  </svg>
+  <div class="meta">版: 1.0 ／ 作成日: 2026年10月8日 ／ 対象: 自宅の Mac(Apple Silicon, RAM 24GB)+ Galaxy S26<br>リポジトリ: github.com/S66Bell/AI- (ブランチ ccr-28d02a89-21mid9)</div>
+</section>
+
+<!-- ───────────── 目次 ───────────── -->
+<section class="page">
+  <h2>目次</h2>
+  <ol class="toc">
+    <li>この仕組みを一言でいうと</li>
+    <li>全体像(概念図)</li>
+    <li>MIRA にできること</li>
+    <li>構成要素の説明</li>
+    <li>会話が処理される流れ</li>
+    <li>記憶と学習の仕組み</li>
+    <li>エージェント(バックグラウンドタスクと定期実行)</li>
+    <li>セキュリティ設計</li>
+    <li>頭脳(モデル)の選択肢</li>
+    <li>ファイルと設定の場所</li>
+    <li>運用手順(起動・更新・困ったとき)</li>
+    <li>用語集</li>
+  </ol>
+  <h3>この文書の読み方</h3>
+  <p>最初の 3 章だけ読めば、仕組みの全体がつかめます。4 章以降は「中で何が起きているか」「なぜ安全か」「どう運用するか」を順に説明します。コマンドは Mac のターミナルで実行するものです。</p>
+</section>
+
+<!-- ───────────── 1. 一言で ───────────── -->
+<section class="page">
+  <h2>1. この仕組みを一言でいうと</h2>
+  <div class="lead">
+    <b>自宅の Mac の中で動く「自分専用の AI(MIRA)」に、スマホからどこでも、暗号化された専用回線でつなぐ仕組み。</b><br>
+    会話の内容は Mac の外に出ず、料金もかからない。MIRA は話すだけでなく、検索・ファイル操作・定期的な作業をこなし、会話からあなたのことを覚えていく。
+  </div>
+  <div class="grid2">
+    <div class="card"><b>頭脳は Mac の中</b>オープンな言語モデル(Qwen2.5-14B)を Mac の GPU で動かす。クラウドの AI サービスは使わない(使いたい場合だけ切り替え可)。</div>
+    <div class="card"><b>入口はスマホのブラウザ</b>アプリをインストールする必要はなく、Chrome でページを開くだけ。ホーム画面に追加すれば普通のアプリのように使える。音声入力も可。</div>
+    <div class="card"><b>つなぐのは Tailscale</b>自分のアカウントでログインした端末同士だけをつなぐ暗号化ネットワーク。ポート開放なし、第三者は到達すらできない。</div>
+    <div class="card"><b>守りは多層</b>ネットワーク制限、トークン認証、ファイル操作の範囲制限、危険操作の事前確認、Web ページからの「なりすまし指示」対策など。</div>
+  </div>
+</section>
+
+<!-- ───────────── 2. 全体像 ───────────── -->
+<section class="page">
+  <h2>2. 全体像(概念図)</h2>
+  <div class="fig">
+  <svg viewBox="0 0 1000 560" xmlns="http://www.w3.org/2000/svg" font-family="IPAPGothic, sans-serif">
+    <defs>
+      <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5b6782"/></marker>
+      <linearGradient id="orb" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b8cff"/><stop offset=".5" stop-color="#8a6cff"/><stop offset="1" stop-color="#ff6fb5"/></linearGradient>
+    </defs>
+    <!-- phone zone -->
+    <rect x="20" y="40" width="230" height="470" rx="18" fill="#eef3ff" stroke="#c9d6ff"/>
+    <text x="135" y="70" text-anchor="middle" font-size="17" font-weight="bold" fill="#1b2440">スマホ(どこにいても)</text>
+    <rect x="50" y="95" width="170" height="110" rx="10" fill="#fff" stroke="#c9d6ff"/>
+    <text x="135" y="122" text-anchor="middle" font-size="14" font-weight="bold">Chrome / ホーム画面アプリ</text>
+    <text x="135" y="146" text-anchor="middle" font-size="12" fill="#5b6782">チャット・タスク・定期実行・記憶</text>
+    <text x="135" y="166" text-anchor="middle" font-size="12" fill="#5b6782">音声入力・読み上げ</text>
+    <text x="135" y="188" text-anchor="middle" font-size="11" fill="#7a63ff">https://…ts.net + トークン</text>
+    <rect x="50" y="230" width="170" height="70" rx="10" fill="#fff" stroke="#c9d6ff"/>
+    <text x="135" y="258" text-anchor="middle" font-size="14" font-weight="bold">Tailscale アプリ</text>
+    <text x="135" y="282" text-anchor="middle" font-size="12" fill="#5b6782">同じアカウントでログイン</text>
+    <text x="135" y="340" text-anchor="middle" font-size="12" fill="#5b6782">Wi-Fi でも 4G/5G でも同じ</text>
+    <!-- tunnel -->
+    <path d="M250,265 C320,265 320,265 395,265" stroke="#7a63ff" stroke-width="10" fill="none" stroke-linecap="round" opacity=".35"/>
+    <path d="M250,265 L395,265" stroke="#7a63ff" stroke-width="2.5" fill="none" marker-end="url(#arr)" marker-start="url(#arr)"/>
+    <text x="322" y="245" text-anchor="middle" font-size="12" fill="#7a63ff" font-weight="bold">暗号化トンネル</text>
+    <text x="322" y="295" text-anchor="middle" font-size="11" fill="#5b6782">インターネット経由でも</text>
+    <text x="322" y="312" text-anchor="middle" font-size="11" fill="#5b6782">中身は見えない</text>
+    <!-- mac zone -->
+    <rect x="395" y="40" width="585" height="470" rx="18" fill="#f6f4ff" stroke="#d9d2ff"/>
+    <text x="687" y="70" text-anchor="middle" font-size="17" font-weight="bold" fill="#1b2440">自宅の Mac(頭脳も記憶もここ)</text>
+    <!-- tailscale serve -->
+    <rect x="420" y="215" width="130" height="100" rx="10" fill="#fff" stroke="#d9d2ff"/>
+    <text x="485" y="245" text-anchor="middle" font-size="13" font-weight="bold">Tailscale</text>
+    <text x="485" y="265" text-anchor="middle" font-size="13" font-weight="bold">Serve</text>
+    <text x="485" y="290" text-anchor="middle" font-size="11" fill="#5b6782">HTTPS の受付窓口</text>
+    <path d="M550,265 L600,265" stroke="#5b6782" stroke-width="2" marker-end="url(#arr)"/>
+    <!-- MIRA server -->
+    <rect x="600" y="150" width="200" height="230" rx="12" fill="#fff" stroke="#8a6cff" stroke-width="2"/>
+    <circle cx="700" cy="190" r="22" fill="url(#orb)"/>
+    <text x="700" y="238" text-anchor="middle" font-size="15" font-weight="bold">MIRA サーバー</text>
+    <text x="700" y="258" text-anchor="middle" font-size="11" fill="#5b6782">(Python, 127.0.0.1:8765)</text>
+    <text x="700" y="285" text-anchor="middle" font-size="11.5">認証・画面配信・会話の進行</text>
+    <text x="700" y="304" text-anchor="middle" font-size="11.5">人格・記憶・学習</text>
+    <text x="700" y="323" text-anchor="middle" font-size="11.5">タスク実行・スケジューラ</text>
+    <text x="700" y="342" text-anchor="middle" font-size="11.5">ツールの安全確認</text>
+    <!-- model -->
+    <path d="M800,210 L850,210" stroke="#5b6782" stroke-width="2" marker-end="url(#arr)" marker-start="url(#arr)"/>
+    <rect x="850" y="150" width="120" height="120" rx="10" fill="#fff" stroke="#d9d2ff"/>
+    <text x="910" y="180" text-anchor="middle" font-size="13" font-weight="bold">言語モデル</text>
+    <text x="910" y="200" text-anchor="middle" font-size="11" fill="#5b6782">llama.cpp (Metal)</text>
+    <text x="910" y="220" text-anchor="middle" font-size="11" fill="#5b6782">Qwen2.5-14B</text>
+    <text x="910" y="245" text-anchor="middle" font-size="10.5" fill="#7a63ff">Mac の中だけ</text>
+    <!-- tools -->
+    <path d="M700,380 L700,410" stroke="#5b6782" stroke-width="2" marker-end="url(#arr)"/>
+    <rect x="420" y="410" width="550" height="85" rx="10" fill="#fff" stroke="#d9d2ff"/>
+    <text x="695" y="432" text-anchor="middle" font-size="12.5" font-weight="bold" fill="#5b6782">MIRA が実際に使う「手」(ツール)</text>
+    <g font-size="11.5" text-anchor="middle">
+      <rect x="435" y="445" width="100" height="36" rx="7" fill="#eef3ff"/><text x="485" y="468">Web 検索・取得</text>
+      <rect x="545" y="445" width="100" height="36" rx="7" fill="#eef3ff"/><text x="595" y="468">ファイル(作業用)</text>
+      <rect x="655" y="445" width="100" height="36" rx="7" fill="#eef3ff"/><text x="705" y="468">シェル(要確認)</text>
+      <rect x="765" y="445" width="90" height="36" rx="7" fill="#eef3ff"/><text x="810" y="468">記憶</text>
+      <rect x="865" y="445" width="95" height="36" rx="7" fill="#eef3ff"/><text x="912" y="468">時刻・端末情報</text>
+    </g>
+    <!-- storage -->
+    <rect x="850" y="285" width="120" height="95" rx="10" fill="#fff" stroke="#d9d2ff"/>
+    <text x="910" y="310" text-anchor="middle" font-size="13" font-weight="bold">保存データ</text>
+    <text x="910" y="330" text-anchor="middle" font-size="10.5" fill="#5b6782">会話履歴・記憶・要約</text>
+    <text x="910" y="348" text-anchor="middle" font-size="10.5" fill="#5b6782">タスク・予定・設定</text>
+    <text x="910" y="366" text-anchor="middle" font-size="10.5" fill="#7a63ff">~/.jarvis</text>
+    <path d="M800,330 L850,330" stroke="#5b6782" stroke-width="2" marker-end="url(#arr)" marker-start="url(#arr)"/>
+    <!-- internet -->
+    <path d="M485,410 L485,395 L485,380" stroke="#5b6782" stroke-width="0"/>
+    <text x="440" y="535" font-size="11" fill="#5b6782">※ Web 検索・取得だけがインターネットに出る(ローカルアドレスへは出られないよう制限)</text>
+  </svg>
+  <div class="cap">図 1: 全体像。スマホは「画面」、Mac が「頭脳・記憶・手」。間を Tailscale の暗号化トンネルがつなぐ。</div>
+  </div>
+  <p>ポイントは 3 つです。<b>①</b> 会話も記憶もモデルも Mac の中で完結する。<b>②</b> スマホからは HTTPS の URL を開くだけで、Mac 側には「あなたの Tailscale アカウントの端末」しか届かない。<b>③</b> MIRA が外へ出るのは Web 検索・取得だけで、それも安全確認付き。</p>
+</section>
+
+<!-- ───────────── 3. できること ───────────── -->
+<section class="page">
+  <h2>3. MIRA にできること</h2>
+  <table>
+    <tr><th style="width:26%">機能</th><th>内容</th><th style="width:22%">使う場所</th></tr>
+    <tr><td><b>会話</b></td><td>親友のようなフランクな日本語で話す。結論を先に、短く。必要ならツールを使って実際に調べる・やる。</td><td>チャットタブ</td></tr>
+    <tr><td><b>バックグラウンドタスク</b></td><td>「今週の AI ニュースを 3 つ調べて要約して」のような目標を渡すと、計画→ツール実行→自己チェック→報告まで一人で進める。進捗はリアルタイム、中止も可。</td><td>タスクタブ(チャットから「調べておいて」でも可)</td></tr>
+    <tr><td><b>定期実行</b></td><td>毎日 8:00、60 分ごと、などの予定でタスクを自動実行。Mac が寝ていた分は起動後に 1 回だけ実行。</td><td>定期実行タブ</td></tr>
+    <tr><td><b>記憶</b></td><td>「覚えておいて」と言われたこと、会話から読み取れる事実(名前、好み、予定、人間関係)を長期記憶に保存。古い会話は要約して保持。</td><td>記憶タブ(自動 + 手動)</td></tr>
+    <tr><td><b>音声</b></td><td>マイクボタンで音声入力、設定で返事の読み上げ。HTTPS 配信なのでスマホでも動く。</td><td>チャットタブ</td></tr>
+    <tr><td><b>Web 検索・ページ取得</b></td><td>DuckDuckGo で検索し、ページ本文を読んで答える。鍵不要・無料。</td><td>自動(MIRA が判断)</td></tr>
+    <tr><td><b>ファイル・シェル</b></td><td>作業用フォルダ内でファイルを読み書き、コマンドを実行。危険な操作は実行前に画面で確認。</td><td>自動(確認ダイアログ)</td></tr>
+  </table>
+  <h3>画面の構成</h3>
+  <div class="grid2">
+    <div class="card"><b>チャット</b>光る球体が状態表示(待機=ゆっくり、処理中=速く、エラー=赤)。「考え中… N秒」で待ち時間が分かる。■で中断。</div>
+    <div class="card"><b>タスク</b>目標を入力して「バックグラウンドで実行」。各タスクの状態(queued / running / done / failed)、報告、実行ログ。</div>
+    <div class="card"><b>定期実行</b>目標と「毎日 HH:MM」または「N 分ごと」を登録。今すぐ実行・停止・削除。</div>
+    <div class="card"><b>記憶</b>会話の要約と覚えている事実の一覧。「今の会話から学習」「履歴を全部消す」「この端末のトークンを消す」。</div>
+  </div>
+</section>
+
+<!-- ───────────── 4. 構成要素 ───────────── -->
+<section class="page">
+  <h2>4. 構成要素の説明</h2>
+  <table>
+    <tr><th style="width:24%">要素</th><th>役割</th><th style="width:26%">実体</th></tr>
+    <tr><td>スマホのブラウザ(PWA)</td><td>画面。入力を送り、返事をストリーミング表示。トークンを端末内に記憶。</td><td><code>jarvis/web/static/index.html</code></td></tr>
+    <tr><td>Tailscale(スマホ・Mac)</td><td>自分のアカウントの端末だけをつなぐ暗号化ネットワーク。Mac 側の Serve 機能が HTTPS で MIRA を公開(tailnet 内のみ)。</td><td>Tailscale アプリ / <code>scripts/mac/tailscale.sh</code></td></tr>
+    <tr><td>MIRA Web サーバー</td><td>認証、画面配信、API。会話を 1 つずつ処理し、ツールの確認を画面に出す。タスク・予定・学習の司令塔。</td><td><code>jarvis/web/server.py</code></td></tr>
+    <tr><td>アシスタント(人格・進行)</td><td>MIRA の人格(システムプロンプト)と記憶を組み合わせ、モデルとツールの往復(エージェントループ)を進める。</td><td><code>jarvis/assistant.py</code>, <code>persona.py</code></td></tr>
+    <tr><td>バックエンド(頭脳への接続)</td><td>どのモデルサーバーと話すか。llama.cpp / Groq / Ollama / Claude を同じ作法で扱う。小さなモデルが崩したツール呼び出しも修復。</td><td><code>jarvis/backends/</code></td></tr>
+    <tr><td>モデルサーバー</td><td>言語モデル本体を GPU で動かし、文章を生成する。Mac の中だけ(127.0.0.1)で待ち受け。</td><td><code>llama-server</code>(Homebrew) + GGUF ファイル</td></tr>
+    <tr><td>ツール群</td><td>MIRA の「手」。Web 検索・取得、ファイル、シェル、記憶、時刻など。安全確認付き。</td><td><code>jarvis/tools/</code></td></tr>
+    <tr><td>記憶・学習</td><td>会話履歴、長期記憶、要約。数往復ごとに会話から事実を抽出して記憶へ。</td><td><code>jarvis/memory.py</code>, <code>learning.py</code></td></tr>
+    <tr><td>タスク実行・スケジューラ</td><td>バックグラウンドタスクを 1 つずつ実行。予定表に従って自動起動。</td><td><code>jarvis/agent.py</code>, <code>scheduler.py</code></td></tr>
+    <tr><td>設定</td><td>名前、呼び名、頭脳の種類、トークン、セキュリティの各設定。</td><td><code>.env</code></td></tr>
+  </table>
+  <p class="note">※ 設定項目の名前が <code>JARVIS_</code> で始まるのは、プロジェクト初期の名前の名残です。アシスタントの名前は <code>JARVIS_NAME</code>(= MIRA)で決まります。</p>
+</section>
+
+<!-- ───────────── 5. 会話の流れ ───────────── -->
+<section class="page">
+  <h2>5. 会話が処理される流れ</h2>
+  <div class="fig">
+  <svg viewBox="0 0 1000 520" xmlns="http://www.w3.org/2000/svg" font-family="IPAPGothic, sans-serif" font-size="14.5">
+    <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5b6782"/></marker></defs>
+    <!-- lanes -->
+    <g font-weight="bold" text-anchor="middle" font-size="15">
+      <rect x="20" y="20" width="150" height="40" rx="8" fill="#eef3ff" stroke="#c9d6ff"/><text x="95" y="45">スマホ(画面)</text>
+      <rect x="220" y="20" width="150" height="40" rx="8" fill="#f6f4ff" stroke="#d9d2ff"/><text x="295" y="45">MIRA サーバー</text>
+      <rect x="420" y="20" width="150" height="40" rx="8" fill="#f6f4ff" stroke="#d9d2ff"/><text x="495" y="45">言語モデル</text>
+      <rect x="620" y="20" width="150" height="40" rx="8" fill="#f6f4ff" stroke="#d9d2ff"/><text x="695" y="45">ツール</text>
+      <rect x="820" y="20" width="150" height="40" rx="8" fill="#f6f4ff" stroke="#d9d2ff"/><text x="895" y="45">記憶・学習</text>
+    </g>
+    <g stroke="#d6dbe8" stroke-dasharray="4 4"><line x1="95" y1="60" x2="95" y2="500"/><line x1="295" y1="60" x2="295" y2="500"/><line x1="495" y1="60" x2="495" y2="500"/><line x1="695" y1="60" x2="695" y2="500"/><line x1="895" y1="60" x2="895" y2="500"/></g>
+    <!-- steps -->
+    <g stroke="#5b6782" stroke-width="2" fill="none">
+      <path d="M95,95 L295,95" marker-end="url(#a2)"/>
+      <path d="M295,140 L495,140" marker-end="url(#a2)"/>
+      <path d="M495,185 L295,185" marker-end="url(#a2)"/>
+      <path d="M295,230 L695,230" marker-end="url(#a2)"/>
+      <path d="M695,275 L295,275" marker-end="url(#a2)"/>
+      <path d="M295,320 L495,320" marker-end="url(#a2)"/>
+      <path d="M495,365 L95,365" marker-end="url(#a2)"/>
+      <path d="M295,420 L895,420" marker-end="url(#a2)"/>
+      <path d="M895,465 L295,465" marker-end="url(#a2)"/>
+    </g>
+    <g fill="#1b2440" font-size="15">
+      <text x="195" y="88" text-anchor="middle">① メッセージ送信(トークン付き)</text>
+      <text x="395" y="133" text-anchor="middle">② 人格+記憶+履歴+ツール一覧を渡す</text>
+      <text x="395" y="178" text-anchor="middle">③ 返事、または「ツールを使いたい」</text>
+      <text x="495" y="223" text-anchor="middle">④ ツール実行(危険なら画面で確認 → スマホに確認ダイアログ)</text>
+      <text x="495" y="268" text-anchor="middle">⑤ 結果(Web 由来なら「信用できないデータ」と注記)</text>
+      <text x="395" y="313" text-anchor="middle">⑥ 結果を踏まえて再度考える(必要なら④⑤を繰り返す)</text>
+      <text x="295" y="358" text-anchor="middle">⑦ 返事を一文字ずつストリーミング表示(「考え中… N秒」→ 本文)</text>
+      <text x="595" y="413" text-anchor="middle">⑧ 会話を履歴に保存。数往復ごとに「覚えるべき事実」を抽出(会話が静かなとき)</text>
+      <text x="595" y="458" text-anchor="middle">⑨ 次回以降のプロンプトに記憶・要約として反映</text>
+    </g>
+    <rect x="30" y="200" width="130" height="60" rx="8" fill="#fff6e5" stroke="#f0a929"/>
+    <text x="95" y="224" text-anchor="middle" font-size="13" fill="#8a5a00">確認ダイアログ</text>
+    <text x="95" y="242" text-anchor="middle" font-size="13" fill="#8a5a00">「実行する / やめる」</text>
+  </svg>
+  <div class="cap">図 2: 1 回の会話の流れ。モデルは「考える」、ツールは「やる」、サーバーがその間を取り持つ。</div>
+  </div>
+  <h3>速さを決めるもの</h3>
+  <p>返事の時間は「プロンプトの読み込み」と「文章の生成」の合計です。人格・ツール一覧・記憶で約 2,000 トークンあるため、<b>前回の内容をキャッシュして差分だけ読む</b>設計にしています(時刻を分単位で入れない、学習処理は会話中に走らせない、モデルサーバーは 1 スロット)。Mac(Metal)の 14B なら、初回 5〜10 秒、以降は数秒が目安です。</p>
+</section>
+
+<!-- ───────────── 6. 記憶と学習 ───────────── -->
+<section class="page">
+  <h2>6. 記憶と学習の仕組み</h2>
+  <div class="lead">モデル自体を学習し直す(重みを更新する)のは個人の Mac では現実的でないため、MIRA は<b>「記憶」で学習</b>します。会話から事実を抽出して蓄積し、毎回の会話の冒頭でそれを読み直す方式です。</div>
+  <div class="fig">
+  <svg viewBox="0 0 1000 300" xmlns="http://www.w3.org/2000/svg" font-family="IPAPGothic, sans-serif" font-size="13">
+    <defs><marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5b6782"/></marker></defs>
+    <rect x="20" y="40" width="200" height="90" rx="10" fill="#eef3ff" stroke="#c9d6ff"/>
+    <text x="120" y="70" text-anchor="middle" font-weight="bold" font-size="13">会話履歴</text>
+    <text x="120" y="92" text-anchor="middle" fill="#5b6782">conversation.jsonl</text>
+    <text x="120" y="112" text-anchor="middle" fill="#5b6782">直近 30 往復を毎回読む</text>
+    <path d="M220,85 L300,85" stroke="#5b6782" stroke-width="2" marker-end="url(#a3)"/>
+    <rect x="300" y="30" width="220" height="110" rx="10" fill="#fff" stroke="#8a6cff" stroke-width="2"/>
+    <text x="410" y="58" text-anchor="middle" font-weight="bold" font-size="13" fill="#7a63ff">振り返り(6 往復ごと)</text>
+    <text x="410" y="80" text-anchor="middle">「今後も役立つ事実」だけ抽出</text>
+    <text x="410" y="100" text-anchor="middle">名前・好み・予定・人間関係・頼み方</text>
+    <text x="410" y="122" text-anchor="middle" fill="#5b6782">重複は捨てる / 会話が静かな時に実行</text>
+    <path d="M520,85 L600,85" stroke="#5b6782" stroke-width="2" marker-end="url(#a3)"/>
+    <rect x="600" y="40" width="200" height="90" rx="10" fill="#f6f4ff" stroke="#d9d2ff"/>
+    <text x="700" y="70" text-anchor="middle" font-weight="bold" font-size="13">長期記憶</text>
+    <text x="700" y="92" text-anchor="middle" fill="#5b6782">memory.json</text>
+    <text x="700" y="112" text-anchor="middle" fill="#5b6782">「ゆうきはコーヒーが好き」等</text>
+    <!-- summary -->
+    <path d="M120,130 L120,190" stroke="#5b6782" stroke-width="2" marker-end="url(#a3)"/>
+    <rect x="20" y="190" width="200" height="80" rx="10" fill="#fff" stroke="#d9d2ff"/>
+    <text x="120" y="218" text-anchor="middle" font-weight="bold" font-size="13">古い会話は要約へ</text>
+    <text x="120" y="240" text-anchor="middle" fill="#5b6782">summary.txt(400 字以内)</text>
+    <text x="120" y="258" text-anchor="middle" fill="#5b6782">80 行を超えたら畳む</text>
+    <!-- prompt -->
+    <path d="M700,130 L700,190" stroke="#5b6782" stroke-width="2" marker-end="url(#a3)"/>
+    <path d="M220,230 L600,230" stroke="#5b6782" stroke-width="2" marker-end="url(#a3)"/>
+    <rect x="600" y="190" width="380" height="80" rx="10" fill="#fff" stroke="#8a6cff" stroke-width="2"/>
+    <text x="790" y="218" text-anchor="middle" font-weight="bold" font-size="13" fill="#7a63ff">毎回の会話の冒頭(システムプロンプト)</text>
+    <text x="790" y="240" text-anchor="middle">人格 + 今日の日付 + 会話の要約 + 覚えていること</text>
+    <text x="790" y="258" text-anchor="middle" fill="#5b6782">→ 「前に話したこと」を前提に返事できる</text>
+  </svg>
+  <div class="cap">図 3: 会話 → 振り返り → 長期記憶 → 次回のプロンプト、という循環。</div>
+  </div>
+  <table>
+    <tr><th style="width:30%">保存されるもの</th><th>場所</th><th style="width:28%">消し方</th></tr>
+    <tr><td>会話履歴(本文)</td><td><code>~/.jarvis/conversation.jsonl</code></td><td>記憶タブ「履歴を全部消す」</td></tr>
+    <tr><td>覚えている事実</td><td><code>~/.jarvis/memory.json</code></td><td>記憶タブで個別に「忘れる」</td></tr>
+    <tr><td>古い会話の要約</td><td><code>~/.jarvis/summary.txt</code></td><td>ファイルを削除</td></tr>
+    <tr><td>タスク・予定</td><td><code>~/.jarvis/tasks.json</code>, <code>schedules.json</code></td><td>画面から削除</td></tr>
+  </table>
+</section>
+
+<!-- ───────────── 7. エージェント ───────────── -->
+<section class="page">
+  <h2>7. エージェント(バックグラウンドタスクと定期実行)</h2>
+  <div class="fig">
+  <svg viewBox="0 0 1000 250" xmlns="http://www.w3.org/2000/svg" font-family="IPAPGothic, sans-serif" font-size="13">
+    <defs><marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5b6782"/></marker></defs>
+    <g text-anchor="middle">
+      <rect x="20" y="60" width="150" height="80" rx="10" fill="#eef3ff" stroke="#c9d6ff"/><text x="95" y="92" font-weight="bold" font-size="13">目標を受け取る</text><text x="95" y="114" fill="#5b6782">画面 / チャット / 予定表</text>
+      <rect x="215" y="60" width="150" height="80" rx="10" fill="#fff" stroke="#d9d2ff"/><text x="290" y="92" font-weight="bold" font-size="13">計画</text><text x="290" y="114" fill="#5b6782">何が必要か、手順は</text>
+      <rect x="410" y="60" width="150" height="80" rx="10" fill="#fff" stroke="#d9d2ff"/><text x="485" y="92" font-weight="bold" font-size="13">実行(最大 40 手)</text><text x="485" y="114" fill="#5b6782">検索・取得・ファイル…</text>
+      <rect x="605" y="60" width="150" height="80" rx="10" fill="#fff" stroke="#d9d2ff"/><text x="680" y="92" font-weight="bold" font-size="13">自己チェック</text><text x="680" y="114" fill="#5b6782">目標を満たした?</text>
+      <rect x="800" y="60" width="180" height="80" rx="10" fill="#f6f4ff" stroke="#8a6cff" stroke-width="2"/><text x="890" y="92" font-weight="bold" font-size="13" fill="#7a63ff">報告(finish_task)</text><text x="890" y="114" fill="#5b6782">結果をチャットにも通知</text>
+    </g>
+    <g stroke="#5b6782" stroke-width="2" fill="none">
+      <path d="M170,100 L215,100" marker-end="url(#a4)"/><path d="M365,100 L410,100" marker-end="url(#a4)"/><path d="M560,100 L605,100" marker-end="url(#a4)"/><path d="M755,100 L800,100" marker-end="url(#a4)"/>
+      <path d="M680,140 C680,190 485,190 485,140" marker-end="url(#a4)" stroke-dasharray="5 4"/>
+    </g>
+    <text x="582" y="200" text-anchor="middle" fill="#5b6782">不足があれば続きをやる(1 回まで)</text>
+    <text x="500" y="235" text-anchor="middle" fill="#8a5a00">バックグラウンドでは誰も確認できないため、危険な操作は自動的に拒否して報告に書く</text>
+  </svg>
+  <div class="cap">図 4: タスクは「計画 → 実行 → 自己チェック → 報告」。1 つずつ順番に処理される。</div>
+  </div>
+  <h3>定期実行</h3>
+  <ul>
+    <li>「毎日 HH:MM」または「N 分ごと」で登録。20 秒ごとに予定表を確認し、時刻が来たらタスクとして実行。</li>
+    <li>Mac がスリープしていて実行できなかった分は、起動後に <b>1 回だけ</b>まとめて実行(何回も走らない)。</li>
+    <li>結果は「タスク」タブに残り、チャットにも「バックグラウンドタスク完了」として通知。</li>
+  </ul>
+  <h3>チャットからの委任</h3>
+  <p>「〜を調べておいて」と頼むと、MIRA 自身が <code>start_background_task</code> ツールでタスクを作り、会話を止めずに裏で進めます。進捗は「〜どうなった?」と聞けば答えます。</p>
+</section>
+
+<!-- ───────────── 8. セキュリティ ───────────── -->
+<section class="page">
+  <h2>8. セキュリティ設計</h2>
+  <div class="fig">
+  <svg viewBox="0 0 1000 330" xmlns="http://www.w3.org/2000/svg" font-family="IPAPGothic, sans-serif" font-size="13">
+    <g text-anchor="middle">
+      <rect x="20" y="20" width="960" height="290" rx="16" fill="#eef3ff" stroke="#c9d6ff"/>
+      <text x="500" y="46" font-weight="bold" font-size="13" fill="#1b2440">第 1 層 ネットワーク ― 届くのは自分の端末だけ</text>
+      <text x="500" y="64" fill="#5b6782">Tailscale(暗号化・アカウント認証) / Web UI は 127.0.0.1 のみ待ち受け / 許可ネットワーク以外は 403 / ポート開放なし</text>
+      <rect x="60" y="80" width="880" height="220" rx="14" fill="#f6f4ff" stroke="#d9d2ff"/>
+      <text x="500" y="106" font-weight="bold" font-size="13">第 2 層 認証 ― 届いても使えない</text>
+      <text x="500" y="124" fill="#5b6782">トークン(ヘッダーのみ・定数時間比較) / 誤り 10 回で 10 分ロック / Cookie 不使用(CSRF 対策) / CSP 等の防御ヘッダー</text>
+      <rect x="100" y="140" width="800" height="150" rx="12" fill="#fff" stroke="#8a6cff" stroke-width="1.5"/>
+      <text x="500" y="166" font-weight="bold" font-size="13" fill="#7a63ff">第 3 層 ツール ― 使えても壊せない</text>
+      <text x="500" y="186" fill="#5b6782">ファイル操作は作業フォルダ内のみ / 危険コマンドは事前確認(Mac は全コマンド) / SSRF 対策(ローカルへ出さない)</text>
+      <rect x="140" y="200" width="720" height="80" rx="10" fill="#fff6e5" stroke="#f0a929"/>
+      <text x="500" y="226" font-weight="bold" font-size="13" fill="#8a5a00">第 4 層 なりすまし指示への耐性(プロンプトインジェクション対策)</text>
+      <text x="500" y="246" fill="#8a5a00">Web の内容は「指示ではなくデータ」と明記して渡す</text>
+      <text x="500" y="266" fill="#8a5a00">Web を読んだターンでは、シェル実行とファイル書き込みを必ず確認制に(裏作業では自動拒否)</text>
+    </g>
+  </svg>
+  <div class="cap">図 5: 4 層の守り。外側から順に「届かない → 使えない → 壊せない → 騙されない」。</div>
+  </div>
+  <table>
+    <tr><th style="width:24%">想定する脅威</th><th>対策</th></tr>
+    <tr><td>第三者がインターネットから接続</td><td>Tailscale 内でしか到達できない。万一ポート開放しても許可ネットワーク外は 403。</td></tr>
+    <tr><td>同じ Wi-Fi の機器からの接続</td><td>Web UI は 127.0.0.1 のみ待ち受け(LAN から直接は届かない)。</td></tr>
+    <tr><td>トークンの総当たり</td><td>96 ビットの乱数 + 10 回失敗で 10 分ロック。</td></tr>
+    <tr><td>悪意あるサイト経由の操作(CSRF)</td><td>Cookie 認証なし、JSON 以外の POST 拒否、CSP。</td></tr>
+    <tr><td>Web ページに仕込まれた「MIRA への指示」</td><td>信用できないデータと明記し、そのターンの副作用は確認制。裏作業は自動拒否。</td></tr>
+    <tr><td>AI が誤って重要ファイルを壊す</td><td>作業フォルダ外は読めない・書けない。危険コマンドは事前確認。</td></tr>
+    <tr><td>AI にルーターや内部サービスを触らせる</td><td><code>web_fetch</code> はローカル/プライベートアドレスを拒否。</td></tr>
+    <tr><td>設定ファイル・ログからの漏えい</td><td><code>.env</code> は 600、<code>~/.jarvis</code> は 700、ログに会話本文を残さない。</td></tr>
+  </table>
+  <p class="note">残るリスク: トークンを知る人は MIRA を操作できる(人に見せない・漏れたら作り直す)。確認ダイアログは内容を読んでから押す。Groq など外部の頭脳を使うときは会話が外に出る。詳細は <code>docs/SECURITY.md</code>。</p>
+</section>
+
+<!-- ───────────── 9. 頭脳 ───────────── -->
+<section class="page">
+  <h2>9. 頭脳(モデル)の選択肢</h2>
+  <p>MIRA の人格・記憶・ツール・画面はそのままに、頭脳だけを切り替えられます。切り替えは <code>bash scripts/brain.sh …</code> と再起動だけです。</p>
+  <table>
+    <tr><th style="width:18%">頭脳</th><th style="width:16%">速さ(目安)</th><th>プライバシー</th><th>費用</th><th style="width:26%">向いている場面</th></tr>
+    <tr><td><span class="badge p">既定</span>Mac ローカル<br>Qwen2.5-14B</td><td>初回 5〜10 秒<br>以降 数秒</td><td>会話は Mac から出ない</td><td>無料</td><td>普段使い。私的な話、ファイル操作。</td></tr>
+    <tr><td>Groq(クラウド)<br>Llama 3.3 70B</td><td>1〜2 秒</td><td>会話の文面が Groq に送られる(ツールは Mac 上)</td><td>無料枠(1 日 1,000 回程度)</td><td>速さと賢さ優先。長いリサーチ。</td></tr>
+    <tr><td>Claude(クラウド)</td><td>数秒</td><td>会話が Anthropic に送られる</td><td>有料</td><td>最高性能が必要なとき。</td></tr>
+    <tr><td>スマホ内(Termux)</td><td>数十秒〜</td><td>完全にスマホ内</td><td>無料</td><td>Mac が使えない非常時。実用性は低い。</td></tr>
+  </table>
+  <h3>Mac のモデルサイズ</h3>
+  <table>
+    <tr><th>RAM</th><th>自動選択</th><th>ファイル</th><th>特徴</th></tr>
+    <tr><td>12〜19GB</td><td>7B</td><td>約 4.7GB</td><td>速い。簡単な用途向き。</td></tr>
+    <tr><td><b>20〜39GB(今の Mac)</b></td><td><b>14B</b></td><td>約 9GB</td><td>賢さと速さのバランス。ツール呼び出しが安定。</td></tr>
+    <tr><td>40GB 以上</td><td>32B</td><td>約 20GB</td><td>かなり賢いが遅め。</td></tr>
+  </table>
+  <p class="note">モデルは Hugging Face から GGUF 形式(4bit 量子化)をダウンロードし、<code>~/models</code> に置きます。別のモデルに変えるときは <code>JARVIS_MODEL_PATH</code> で指定します。</p>
+</section>
+
+<!-- ───────────── 10. ファイルと設定 ───────────── -->
+<section class="page">
+  <h2>10. ファイルと設定の場所</h2>
+  <h3>リポジトリ(~/mira)</h3>
+  <table>
+    <tr><th style="width:36%">パス</th><th>内容</th></tr>
+    <tr><td><code>jarvis/</code></td><td>MIRA 本体(Python)。web/ が画面とサーバー、backends/ が頭脳との接続、tools/ がツール。</td></tr>
+    <tr><td><code>scripts/mac/setup.sh</code></td><td>初回セットアップ(llama.cpp、Python、モデル、.env)。</td></tr>
+    <tr><td><code>scripts/mac/start.sh</code> / <code>stop.sh</code></td><td>起動 / 停止。</td></tr>
+    <tr><td><code>scripts/mac/install-service.sh</code></td><td>ログイン時に自動起動・落ちたら再起動(LaunchAgent)。</td></tr>
+    <tr><td><code>scripts/mac/tailscale.sh</code></td><td>Tailscale で HTTPS 配信、LAN を閉じる。<code>off</code> で元に戻す。</td></tr>
+    <tr><td><code>scripts/brain.sh</code></td><td>頭脳の切り替え(<code>groq キー</code> / <code>local</code>)。</td></tr>
+    <tr><td><code>docs/</code></td><td>MAC.md(運用)、SECURITY.md(安全)、ANDROID.md(スマホ内実行)、この設計書。</td></tr>
+    <tr><td><code>.env</code></td><td>設定(Git には含まれない)。</td></tr>
+    <tr><td><code>tests/</code></td><td>自動テスト(29 件)。偽のモデルサーバーで会話・タスク・学習・安全機能を検証。</td></tr>
+  </table>
+  <h3>主な設定(.env)</h3>
+  <table>
+    <tr><th style="width:34%">項目</th><th>意味</th><th style="width:22%">今の値</th></tr>
+    <tr><td><code>JARVIS_PROVIDER</code></td><td>頭脳の種類(llamacpp / groq / claude / ollama)</td><td>llamacpp</td></tr>
+    <tr><td><code>JARVIS_NAME</code> / <code>JARVIS_USER_NAME</code></td><td>アシスタントの名前 / あなたの呼び名</td><td>MIRA / ゆうき</td></tr>
+    <tr><td><code>JARVIS_WEB_HOST</code> / <code>PORT</code> / <code>TOKEN</code></td><td>待ち受けアドレス / ポート / アクセストークン</td><td>127.0.0.1 / 8765 / 自動生成</td></tr>
+    <tr><td><code>JARVIS_WEB_ALLOW</code></td><td>接続を許可するネットワーク</td><td>既定(私設 + Tailscale)</td></tr>
+    <tr><td><code>JARVIS_FS_ROOT</code></td><td>ファイル操作の範囲</td><td>~/.jarvis/workspace</td></tr>
+    <tr><td><code>JARVIS_SHELL</code> / <code>JARVIS_CONFIRM_ALL_SHELL</code></td><td>シェルツールの有無 / 全コマンド確認制</td><td>1 / 1</td></tr>
+    <tr><td><code>JARVIS_LEARN</code> / <code>_EVERY</code> / <code>_IDLE</code></td><td>自動学習 / 何往復ごと / 何秒静かなら</td><td>1 / 6 / 30</td></tr>
+    <tr><td><code>JARVIS_HISTORY_TURNS</code></td><td>起動時に読み込む過去の会話数</td><td>30</td></tr>
+    <tr><td><code>JARVIS_GROQ_API_KEY</code> / <code>_MODEL</code></td><td>Groq 使用時のキー / モデル</td><td>(未設定)</td></tr>
+  </table>
+</section>
+
+<!-- ───────────── 11. 運用 ───────────── -->
+<section class="page">
+  <h2>11. 運用手順</h2>
+  <h3>毎日の使い方</h3>
+  <ul>
+    <li>Mac: ログインしていれば自動で動いている(常駐サービスを入れた場合)。入れていなければ <code>bash scripts/mac/start.sh</code>。</li>
+    <li>スマホ: Tailscale をオンにして、ホーム画面の MIRA を開く。</li>
+    <li>Mac がスリープすると届かない。ノートは電源につなぎ、電源接続時のスリープを防ぐ設定にする。</li>
+  </ul>
+  <h3>よく使うコマンド</h3>
+  <pre>cd ~/mira
+bash scripts/mac/start.sh              # 起動(Ctrl-C で停止)
+bash scripts/mac/stop.sh               # 停止(常駐サービスも止める)
+bash scripts/mac/install-service.sh    # ログイン時に自動起動(remove で解除)
+git pull                               # 最新版に更新(そのあと再起動)
+bash scripts/brain.sh groq gsk_キー     # 頭脳を Groq に
+bash scripts/brain.sh local            # 頭脳を Mac に戻す
+bash scripts/mac/tailscale.sh off      # Tailscale 配信をやめて LAN に戻す</pre>
+  <h3>トークンを作り直す</h3>
+  <pre>sed -i '' "s|^JARVIS_WEB_TOKEN=.*|JARVIS_WEB_TOKEN=$(.venv/bin/python -c 'import secrets;print(secrets.token_hex(12))')|" .env
+grep JARVIS_WEB_TOKEN .env             # 新しいトークンを確認 → 再起動 → スマホで再入力</pre>
+  <h3>困ったとき</h3>
+  <table>
+    <tr><th style="width:34%">症状</th><th>確認・対処</th></tr>
+    <tr><td>スマホで「このサイトにアクセスできません」</td><td>Mac で MIRA が動いているか(<code>start.sh</code> の画面)。スマホの Tailscale がオンか。Mac がスリープしていないか。</td></tr>
+    <tr><td>トークンを聞かれ続ける</td><td><code>.env</code> の <code>JARVIS_WEB_TOKEN</code> を確認。10 回間違えると 10 分ロック。</td></tr>
+    <tr><td>返事が遅い</td><td><code>grep -E "prompt eval time|eval time" ~/.jarvis/llama-server.log | tail -n 4</code> で速度を確認。他の重いアプリを閉じる。7B に変える。</td></tr>
+    <tr><td>起動時に <code>llama-server exited</code></td><td><code>tail -n 30 ~/.jarvis/llama-server.log</code>。メモリ不足なら小さいモデルへ。</td></tr>
+    <tr><td>中国語や英語で返してくる</td><td>人格の指示で日本語を指定済み。続くなら「日本語で」と一言。14B ではほぼ起きない。</td></tr>
+    <tr><td>常駐サービスのログを見たい</td><td><code>tail -f ~/.jarvis/mac.log</code>、会話処理の記録は <code>~/.jarvis/web.log</code>。</td></tr>
+  </table>
+</section>
+
+<!-- ───────────── 12. 用語集 ───────────── -->
+<section class="page">
+  <h2>12. 用語集</h2>
+  <table>
+    <tr><th style="width:26%">用語</th><th>意味</th></tr>
+    <tr><td>言語モデル(LLM)</td><td>文章を読んで続きを生成する AI の本体。MIRA の「頭脳」。</td></tr>
+    <tr><td>GGUF / 量子化</td><td>モデルを小さく圧縮した形式。4bit 量子化で品質をほぼ保ったままサイズを 1/4 に。</td></tr>
+    <tr><td>llama.cpp / llama-server</td><td>GGUF モデルを Mac などで高速に動かすソフト。Metal(Apple の GPU 機能)を使う。</td></tr>
+    <tr><td>トークン</td><td>モデルが扱う文字のかたまり。日本語は 1〜2 文字で 1 トークン程度。「トークン/秒」が速さの単位。</td></tr>
+    <tr><td>プロンプト / システムプロンプト</td><td>モデルに渡す文章。冒頭の「人格・記憶・ルール」部分がシステムプロンプト。</td></tr>
+    <tr><td>ツール呼び出し</td><td>モデルが「検索して」「このファイルを読んで」と要求し、サーバーが実行して結果を返す仕組み。</td></tr>
+    <tr><td>エージェント</td><td>目標に向けてツールを何度も使い、自分で進める AI の使い方。</td></tr>
+    <tr><td>PWA</td><td>ブラウザのページをアプリのようにホーム画面に置ける仕組み。HTTPS が必要。</td></tr>
+    <tr><td>Tailscale / tailnet</td><td>自分の端末同士だけをつなぐ暗号化ネットワーク(VPN の一種)。その自分専用ネットワークが tailnet。</td></tr>
+    <tr><td>Tailscale Serve</td><td>tailnet 内の端末に対して、Mac 上のサービスを HTTPS で公開する機能。</td></tr>
+    <tr><td>アクセストークン</td><td>MIRA を使うための合言葉。ブラウザが記憶し、毎回ヘッダーで送る。</td></tr>
+    <tr><td>プロンプトインジェクション</td><td>Web ページなどに「AI への偽の指示」を仕込み、AI を操ろうとする攻撃。</td></tr>
+    <tr><td>SSRF</td><td>サーバー(ここでは MIRA)に、内部ネットワークへアクセスさせる攻撃。</td></tr>
+    <tr><td>CSP / CSRF</td><td>ブラウザ側の防御設定 / 他サイト経由で操作させる攻撃。MIRA は両方に対策済み。</td></tr>
+    <tr><td>KV キャッシュ</td><td>モデルが一度読んだプロンプトの計算結果。使い回すと 2 回目以降が速くなる。</td></tr>
+  </table>
+  <p class="note" style="margin-top:8mm">この設計書は MIRA のソースコードと一緒に <code>docs/design/</code> に保存されています。仕組みを変更したら、この文書も更新してください。</p>
+</section>
+
+</body>
+</html>
