@@ -85,7 +85,11 @@ class FakeModel:
         if "記憶整理係" in system:
             if "要約" in system and "統合" in system:
                 return self._text("要約: ユーザーはテストを続けている。")
-            return self._text('["ユーザーの名前はゆうき", "コーヒーが好き"]')
+            return self._text('{"facts": ["ユーザーの名前はゆうき", "コーヒーが好き"], "lessons": ["返事は短くする"]}')
+        if "コーチ" in system:
+            return self._text("長い説明はせず、結論を先に言う")
+        if "振り返り係" in system:
+            return self._text("まず web_search で候補を集めてから web_fetch で本文を読む")
         if last["role"] == "tool":
             if last.get("name") == "finish_task":
                 return self._text("Filed.")

@@ -67,7 +67,7 @@ footer{position:fixed;bottom:-10mm;left:0;right:0;font-size:8.5pt;color:var(--mu
     <li>MIRA にできること</li>
     <li>構成要素の説明</li>
     <li>会話が処理される流れ</li>
-    <li>記憶と学習の仕組み</li>
+    <li>記憶と学習の仕組み(自己学習の 3 つのループ)</li>
     <li>エージェント(バックグラウンドタスクと定期実行)</li>
     <li>セキュリティ設計</li>
     <li>頭脳(モデル)の選択肢</li>
@@ -264,7 +264,7 @@ footer{position:fixed;bottom:-10mm;left:0;right:0;font-size:8.5pt;color:var(--mu
 
 <!-- ───────────── 6. 記憶と学習 ───────────── -->
 <section class="page">
-  <h2>6. 記憶と学習の仕組み</h2>
+  <h2>6. 記憶と学習の仕組み(自己学習)</h2>
   <div class="lead">モデル自体を学習し直す(重みを更新する)のは個人の Mac では現実的でないため、MIRA は<b>「記憶」で学習</b>します。会話から事実を抽出して蓄積し、毎回の会話の冒頭でそれを読み直す方式です。</div>
   <div class="fig">
   <svg viewBox="0 0 1000 300" xmlns="http://www.w3.org/2000/svg" font-family="IPAPGothic, sans-serif" font-size="13">
@@ -300,9 +300,20 @@ footer{position:fixed;bottom:-10mm;left:0;right:0;font-size:8.5pt;color:var(--mu
   </svg>
   <div class="cap">図 3: 会話 → 振り返り → 長期記憶 → 次回のプロンプト、という循環。</div>
   </div>
+  <h3>自己学習の 3 つのループ</h3>
+  <table>
+    <tr><th style="width:22%">何を学ぶか</th><th>きっかけ</th><th>MIRA がすること</th><th style="width:24%">次に活きる場面</th></tr>
+    <tr><td><b>接し方</b>(lessons)</td><td>返事への 👎、「違う」「もっと短く」などの訂正、6 往復ごとの振り返り</td><td>「〜のときは〜する」という 1 文のルールを自分で作って保存(重複は捨てる、最大 40 件)</td><td>毎回の人格に「必ず守る接し方」として追加</td></tr>
+    <tr><td><b>知識</b>(knowledge)</td><td>「このページを覚えて」「この文章を覚えて」、記憶タブの入力欄、ワークスペース内のファイル</td><td>本文を 600 字程度に分けて索引化(日本語対応の軽量全文検索)。追加モデル不要</td><td>質問に関係する部分を自動で引いて返事の材料にする。<code>search_knowledge</code> でも検索</td></tr>
+    <tr><td><b>やり方</b>(playbook)</td><td>バックグラウンドタスクの完了・失敗</td><td>目標・ログ・結果から「次に似た作業をするときの教訓」を 1〜2 文で書き残す</td><td>似た目標のタスクを始めるとき、教訓を先に読む</td></tr>
+  </table>
+  <p class="note">いずれも Mac の中で完結し、人格・記憶タブからいつでも見直し・削除できます。モデルの重み自体は変えないので、学習で賢さが壊れることはありません。</p>
   <table>
     <tr><th style="width:30%">保存されるもの</th><th>場所</th><th style="width:28%">消し方</th></tr>
     <tr><td>会話履歴(本文)</td><td><code>~/.jarvis/conversation.jsonl</code></td><td>記憶タブ「履歴を全部消す」</td></tr>
+    <tr><td>学んだ接し方</td><td><code>~/.jarvis/lessons.json</code></td><td>記憶タブで個別に「消す」</td></tr>
+    <tr><td>覚えさせた知識</td><td><code>~/.jarvis/knowledge.json</code></td><td>記憶タブで個別に「消す」</td></tr>
+    <tr><td>作業の教訓</td><td><code>~/.jarvis/playbook.json</code></td><td>ファイルを削除</td></tr>
     <tr><td>覚えている事実</td><td><code>~/.jarvis/memory.json</code></td><td>記憶タブで個別に「忘れる」</td></tr>
     <tr><td>古い会話の要約</td><td><code>~/.jarvis/summary.txt</code></td><td>ファイルを削除</td></tr>
     <tr><td>タスク・予定</td><td><code>~/.jarvis/tasks.json</code>, <code>schedules.json</code></td><td>画面から削除</td></tr>

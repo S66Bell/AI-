@@ -68,9 +68,11 @@ class Task:
 class TaskRunner:
     """Queues tasks and runs them sequentially on a worker thread."""
 
-    def __init__(self, config: Config, memory: Memory):
+    def __init__(self, config: Config, memory: Memory, on_finished=None):
         self.config = config
         self.memory = memory
+        # Called with the finished Task (any status) — used for reflections.
+        self.on_finished = on_finished
         self.path = config.data_dir / "tasks.json"
         self._tasks: dict[str, Task] = {}
         self._order: list[str] = []
@@ -243,7 +245,11 @@ class TaskRunner:
                 tool_ctx,
                 self.memory,
                 system_fn=lambda: build_agent_prompt(
-                    self.config, self.memory.facts_as_text(), self.memory.load_summary()
+                    self.config,
+                    self.memory.facts_as_text(),
+                    self.memory.load_summary(),
+                    self.memory.lessons_as_text(),
+                    self.memory.playbook_for(task.goal),
                 ),
                 emit=lambda chunk: self._log(task, "text", chunk),
                 notify=notify,
@@ -300,6 +306,11 @@ class TaskRunner:
                     f"[System note] Background task finished — goal: {task.goal}\n"
                     f"Result:\n{task.result[:2000]}",
                 )
+            if self.on_finished is not None and task.status in ("done", "failed"):
+                try:
+                    self.on_finished(task)
+                except Exception:
+                    pass
 
     def _is_cancelled(self, task: Task) -> bool:
         if task.id in self._cancel_requested:

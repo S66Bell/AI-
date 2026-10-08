@@ -14,7 +14,7 @@ def _user_ref(config: Config) -> str:
     return name if name and name.lower() not in ("sir", "user") else "ユーザー"
 
 
-def build_system_prompt(config: Config, long_term_memory: str = "", summary: str = "") -> str:
+def build_system_prompt(config: Config, long_term_memory: str = "", summary: str = "", lessons: str = "") -> str:
     """Assemble the system prompt that defines who MIRA is.
 
     The stable persona comes first so it caches well; the volatile bits
@@ -82,17 +82,28 @@ def build_system_prompt(config: Config, long_term_memory: str = "", summary: str
 {long_term_memory.strip()}
 """
 
+    if lessons.strip():
+        context += f"""
+── {user} とのやり取りから学んだ接し方(必ず守る)──
+{lessons.strip()}
+"""
+
     return persona + context
 
 
-def build_agent_prompt(config: Config, long_term_memory: str = "", summary: str = "") -> str:
+def build_agent_prompt(config: Config, long_term_memory: str = "", summary: str = "", lessons: str = "", playbook: str = "") -> str:
     """System prompt for autonomous background tasks.
 
     Same persona, plus explicit instructions for working alone: plan, act with
     tools, verify, and file one final report via ``finish_task``.
     """
-    base = build_system_prompt(config, long_term_memory, summary)
+    base = build_system_prompt(config, long_term_memory, summary, lessons)
     user = _user_ref(config)
+    if playbook.strip():
+        base += f"""
+── 過去の似た作業で得た教訓 ──
+{playbook.strip()}
+"""
     agent = f"""
 
 ── 自律タスクモード ──

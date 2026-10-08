@@ -76,6 +76,9 @@ main{flex:1;min-height:0;position:relative}
 .msg.bot .md ul{margin:4px 0;padding-left:20px}
 .msg.bot .md a{color:var(--a1)}
 .msg .thinking{color:var(--muted);font-style:italic;font-size:13px}
+.fb{display:flex;gap:6px;margin:-2px 0 8px 12px}
+.fb button{border:1px solid var(--glass-border);background:var(--glass);border-radius:999px;font-size:13px;padding:2px 10px;color:var(--muted)}
+.fb button.on{background:linear-gradient(135deg,var(--a1),var(--a2));color:#fff;border-color:transparent}
 .status{color:var(--muted);font-size:12px;margin:4px 0 4px 10px;display:flex;align-items:center;gap:6px}
 .status::before{content:"";width:6px;height:6px;border-radius:50%;background:linear-gradient(135deg,var(--a1),var(--a3));flex:none}
 .status.wait::before{width:10px;height:10px;animation:spin 1.2s linear infinite, breathe 1s ease-in-out infinite;background:conic-gradient(from 0deg,var(--a1),var(--a4),var(--a2),var(--a3),var(--a1))}
@@ -267,6 +270,19 @@ function addNote(text) {
   else d.textContent = text.replace(/^\[System note\]\s*/, '');
   chat.appendChild(d); scrollDown();
 }
+function addFeedback(userText, replyText) {
+  const row = document.createElement('div'); row.className = 'fb';
+  const up = document.createElement('button'); up.textContent = '👍';
+  const down = document.createElement('button'); down.textContent = '👎 直してほしい';
+  const send = async (rating, note) => {
+    up.classList.toggle('on', rating === 'up'); down.classList.toggle('on', rating === 'down');
+    const r = await api('/api/feedback', {method: 'POST', body: {rating, note, user: userText, reply: replyText}});
+    if (r.learning) addStatus('了解。次から気をつけるね(接し方として学習中)');
+  };
+  up.onclick = () => send('up', '');
+  down.onclick = () => { const note = prompt('どう直してほしい?(空でもOK)') ; if (note === null) return; send('down', note); };
+  row.append(up, down); chat.appendChild(row); scrollDown();
+}
 function addStatus(text) { const d = document.createElement('div'); d.className = 'status'; d.textContent = text; chat.appendChild(d); scrollDown(); }
 function addError(text) { const d = document.createElement('div'); d.className = 'errline'; d.textContent = text; chat.appendChild(d); scrollDown(); }
 async function loadHistory() {
@@ -328,7 +344,7 @@ async function sendMessage() {
         else if (ev === 'confirm') showConfirm(payload);
         else if (ev === 'error') addError(payload);
         else if (ev === 'done' && !payload.reply && !buf) { addError('モデルから空の返事が返ってきた。もう一度送ってみて(続くようなら doctor.sh のログを見てね)'); }
-        else if (ev === 'done') { if (payload.reply && !buf) { ensureBot().querySelector('.md').innerHTML = md(payload.reply); buf = payload.reply; } if ($('#tts').checked && buf) speak(buf); }
+        else if (ev === 'done') { if (payload.reply && !buf) { ensureBot().querySelector('.md').innerHTML = md(payload.reply); buf = payload.reply; } if ($('#tts').checked && buf) speak(buf); if (buf) addFeedback(text, buf); }
       }
     }
   } catch (e) {
@@ -440,9 +456,29 @@ $('#schedAdd').onclick = async () => {
 };
 // ── memory ───────────────────────────────────────────────────
 async function loadMemory() {
-  const {facts, summary} = await api('/api/memory'); const el = $('#memory'); el.innerHTML = '';
+  const {facts, summary, lessons = [], knowledge = [], playbook = []} = await api('/api/memory'); const el = $('#memory'); el.innerHTML = '';
   if (summary) { const c = document.createElement('div'); c.className = 'card'; c.innerHTML = '<div class="meta">これまでの会話の要約</div><div class="title" style="font-weight:400;white-space:pre-wrap">' + esc(summary) + '</div>'; el.appendChild(c); }
-  if (!facts.length) { el.innerHTML += '<div class="empty"><div class="orb"></div>まだ何も覚えていないよ。会話するうちに自動で覚えていくから、しばらく話してみて</div>'; return; }
+  if (lessons.length) {
+    const c = document.createElement('div'); c.className = 'card';
+    c.innerHTML = '<div class="meta">学んだ接し方(👎 や訂正から自動で学習)</div>' + lessons.map(l => `<div class="title" style="font-weight:400;display:flex;gap:8px;align-items:flex-start"><span style="flex:1">・${esc(l.text)}</span><button class="btn sec" style="padding:2px 8px;font-size:12px" data-lesson="${esc(l.text)}">消す</button></div>`).join('');
+    c.querySelectorAll('[data-lesson]').forEach(b => b.onclick = async () => { await api('/api/lessons/forget', {method: 'POST', body: {query: b.dataset.lesson}}); loadMemory(); });
+    el.appendChild(c);
+  }
+  { const c = document.createElement('div'); c.className = 'card';
+    c.innerHTML = `<div class="meta">覚えさせた知識(${knowledge.length} 件)・作業の教訓 ${playbook.length} 件</div>` +
+      knowledge.map(k => `<div class="title" style="font-weight:400;display:flex;gap:8px;align-items:flex-start"><span style="flex:1">📚 ${esc(k.title)} <span class="meta" style="display:inline">(${k.chars} 文字)</span></span><button class="btn sec" style="padding:2px 8px;font-size:12px" data-kid="${k.id}">消す</button></div>`).join('') +
+      `<div class="row" style="display:flex;gap:8px;margin-top:8px"><input id="kTitle" placeholder="タイトル(任意)" style="flex:1;border:1px solid var(--glass-border);border-radius:14px;background:var(--glass-strong);color:var(--text);padding:9px 12px;font:inherit;min-width:0"></div>
+       <textarea id="kText" rows="3" placeholder="覚えさせたい文章、または https:// で始まる URL" style="width:100%;margin-top:8px;border-radius:16px"></textarea>
+       <div class="row" style="display:flex;gap:8px;margin-top:8px"><button class="btn" id="kAdd">覚えさせる</button></div>`;
+    c.querySelectorAll('[data-kid]').forEach(b => b.onclick = async () => { await api('/api/knowledge/' + b.dataset.kid, {method: 'DELETE'}); loadMemory(); });
+    c.querySelector('#kAdd').onclick = async () => {
+      const v = c.querySelector('#kText').value.trim(); if (!v) return;
+      const body = {title: c.querySelector('#kTitle').value.trim()}; if (/^https?:\/\//.test(v)) body.url = v; else body.text = v;
+      c.querySelector('#kAdd').disabled = true; const r = await api('/api/knowledge', {method: 'POST', body}); c.querySelector('#kAdd').disabled = false;
+      alert(r.message); loadMemory();
+    };
+    el.appendChild(c); }
+  if (!facts.length) { el.insertAdjacentHTML('beforeend', '<div class="empty"><div class="orb"></div>まだ何も覚えていないよ。会話するうちに自動で覚えていくから、しばらく話してみて</div>'); return; }
   for (const f of facts) {
     const c = document.createElement('div'); c.className = 'card';
     c.innerHTML = `<div class="title">${esc(f.fact)}</div><div class="meta">${esc((f.added || '').replace('T', ' '))}${f.source === 'auto' ? ' · 会話から自動で記憶' : ''}</div><div class="actions"><button class="btn sec">忘れる</button></div>`;

@@ -25,6 +25,10 @@ class Memory:
         self.history_path = data_dir / "conversation.jsonl"
         self.facts_path = data_dir / "memory.json"
         self.summary_path = data_dir / "summary.txt"
+        # Learned behaviour rules ("when X, do Y") and task playbook entries.
+        self.lessons_path = data_dir / "lessons.json"
+        self.playbook_path = data_dir / "playbook.json"
+        self.feedback_path = data_dir / "feedback.jsonl"
         self.history_turns = history_turns
         # When the transcript has more rows than this, old turns get folded
         # into the rolling summary (see learning.py).
@@ -70,6 +74,63 @@ class Memory:
             if q == k or (len(q) > 6 and (q in k or k in q)):
                 return True
         return False
+
+    # ── Lessons: how the user wants to be treated ──────────────────────
+    def load_lessons(self) -> list[dict]:
+        try:
+            return json.loads(self.lessons_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return []
+
+    def add_lesson(self, text: str, source: str = "feedback", max_items: int = 40) -> bool:
+        text = text.strip()
+        if not text:
+            return False
+        items = self.load_lessons()
+        q = _norm(text)
+        for it in items:
+            k = _norm(it.get("text", ""))
+            if q == k or (len(q) > 8 and (q in k or k in q)):
+                return False
+        items.append({"text": text, "source": source, "added": datetime.now().isoformat(timespec="seconds")})
+        items = items[-max_items:]
+        self.lessons_path.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
+        return True
+
+    def forget_lesson(self, query: str) -> int:
+        items = self.load_lessons()
+        q = query.strip().lower()
+        kept = [it for it in items if q not in it["text"].lower()]
+        self.lessons_path.write_text(json.dumps(kept, ensure_ascii=False, indent=2), encoding="utf-8")
+        return len(items) - len(kept)
+
+    def lessons_as_text(self) -> str:
+        return "\n".join(f"- {it['text']}" for it in self.load_lessons())
+
+    def record_feedback(self, entry: dict) -> None:
+        entry = dict(entry, ts=datetime.now().isoformat(timespec="seconds"))
+        with self.feedback_path.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+    # ── Playbook: what worked for past tasks ───────────────────────────
+    def load_playbook(self) -> list[dict]:
+        try:
+            return json.loads(self.playbook_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return []
+
+    def add_playbook(self, goal: str, lesson: str, max_items: int = 100) -> None:
+        items = self.load_playbook()
+        items.append({"goal": goal.strip()[:200], "lesson": lesson.strip()[:400], "added": datetime.now().isoformat(timespec="seconds")})
+        self.playbook_path.write_text(json.dumps(items[-max_items:], ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def playbook_for(self, goal: str, k: int = 3) -> str:
+        from .knowledge import similarity
+
+        items = self.load_playbook()
+        scored = sorted(((similarity(goal, it["goal"]), it) for it in items), key=lambda x: -x[0])
+        picked = [it for score, it in scored[:k] if score > 0.15]
+        return "\n".join(f"- 「{it['goal'][:60]}」のとき: {it['lesson']}" for it in picked)
 
     # ── Rolling summary of older conversation ──────────────────────────
     def load_summary(self) -> str:

@@ -41,9 +41,12 @@ from .. import __version__
 from ..agent import TaskRunner
 from ..assistant import Assistant
 from ..config import Config
+from ..knowledge import Knowledge
 from ..learning import Learner
 from ..memory import Memory
 from ..scheduler import Scheduler
+from ..tools import ToolContext
+from ..tools.knowledge_tool import get_tools as knowledge_tools
 
 STATIC_DIR = Path(__file__).parent / "static"
 CONFIRM_TIMEOUT = 180.0  # seconds to wait for a yes/no from the phone
@@ -80,7 +83,8 @@ class JarvisWeb:
         self.config = config
         self.memory = memory or Memory(config.data_dir, history_turns=config.history_turns)
         self.log_path = config.data_dir / "web.log"
-        self.runner = TaskRunner(config, self.memory)
+        self.knowledge = Knowledge(config.data_dir)
+        self.runner = TaskRunner(config, self.memory, on_finished=self._on_task_finished)
         self.scheduler = Scheduler(self.runner, config.data_dir)
         self.scheduler.start()
         self.learner = Learner(
@@ -107,6 +111,37 @@ class JarvisWeb:
                 self.log(f"ignoring bad JARVIS_WEB_ALLOW entry: {cidr!r}")
         self._auth_failures: dict[str, list] = {}  # ip -> [count, locked_until]
         self._auth_lock = threading.Lock()
+
+    def _on_task_finished(self, task) -> None:
+        """Keep a 'next time' note for every finished background task."""
+        if self.config.reflect_enabled:
+            self.learner.request(
+                "task",
+                {"goal": task.goal, "status": task.status, "result": task.result, "log": task.log},
+            )
+
+    def feedback(self, body: dict) -> dict:
+        rating = "down" if str(body.get("rating", "")).lower() in ("down", "bad", "-1", "👎") else "up"
+        entry = {
+            "rating": rating,
+            "note": str(body.get("note", ""))[:1000],
+            "user": str(body.get("user", ""))[:2000],
+            "reply": str(body.get("reply", ""))[:2000],
+        }
+        self.memory.record_feedback(entry)
+        if self.config.reflect_enabled and (rating == "down" or entry["note"]):
+            self.learner.request("lesson", entry)
+            return {"ok": True, "learning": True}
+        return {"ok": True, "learning": False}
+
+    def learn(self, body: dict) -> dict:
+        """Add a page / text to the knowledge base from the UI."""
+        learn_tool = knowledge_tools(self.knowledge)[0]
+        ctx = ToolContext(config=self.config, memory=self.memory, confirm=lambda _q: False)
+        result = learn_tool.run(
+            {"title": body.get("title", ""), "url": body.get("url", ""), "text": body.get("text", "")}, ctx
+        )
+        return {"ok": not result.startswith("Error"), "message": result}
 
     # ── security helpers ───────────────────────────────────────────────
     def client_allowed(self, ip: str) -> bool:
@@ -213,6 +248,7 @@ class JarvisWeb:
                 on_thinking=self._thinking if self.config.show_thinking else None,
                 runner=self.runner,
                 learner=self.learner,
+                knowledge=self.knowledge,
             )
             self.backend_error = None
         except Exception as exc:  # model server down, model missing, ...
@@ -489,7 +525,13 @@ def _make_handler(app: JarvisWeb):
             if path == "/api/memory":
                 return self._json(
                     HTTPStatus.OK,
-                    {"facts": app.memory.load_facts(), "summary": app.memory.load_summary()},
+                    {
+                        "facts": app.memory.load_facts(),
+                        "summary": app.memory.load_summary(),
+                        "lessons": app.memory.load_lessons(),
+                        "knowledge": app.knowledge.list(),
+                        "playbook": app.memory.load_playbook()[-20:],
+                    },
                 )
             if path == "/api/tasks":
                 limit = int(query.get("limit", ["50"])[0])
@@ -533,6 +575,15 @@ def _make_handler(app: JarvisWeb):
                 except (BrokenPipeError, ConnectionResetError):
                     pass
                 return
+            if path == "/api/feedback":
+                return self._json(HTTPStatus.OK, app.feedback(body))
+            if path == "/api/lessons/forget":
+                q = str(body.get("query", "")).strip()
+                if not q:
+                    return self._json(HTTPStatus.BAD_REQUEST, {"error": "empty query"})
+                return self._json(HTTPStatus.OK, {"removed": app.memory.forget_lesson(q)})
+            if path == "/api/knowledge":
+                return self._json(HTTPStatus.OK, app.learn(body))
             if path == "/api/chat/cancel":
                 return self._json(HTTPStatus.OK, {"ok": app.cancel_chat()})
             if path == "/api/learn":
@@ -601,6 +652,9 @@ def _make_handler(app: JarvisWeb):
                 return None
             if url.path.startswith("/api/schedules/"):
                 ok = app.scheduler.remove(url.path.split("/")[3])
+                return self._json(HTTPStatus.OK if ok else HTTPStatus.NOT_FOUND, {"ok": ok})
+            if url.path.startswith("/api/knowledge/"):
+                ok = app.knowledge.remove(url.path.split("/")[3])
                 return self._json(HTTPStatus.OK if ok else HTTPStatus.NOT_FOUND, {"ok": ok})
             return self._json(HTTPStatus.NOT_FOUND, {"error": "not found"})
 

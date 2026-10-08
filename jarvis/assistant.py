@@ -28,10 +28,13 @@ class Assistant:
         on_thinking: Callable[[str], None] | None = None,
         runner=None,
         learner=None,
+        knowledge=None,
     ):
         self.config = config
         self.memory = memory
         self.learner = learner
+        self.knowledge = knowledge
+        self.last_exchange: dict = {}
 
         # The local backend needs its own web tools; Claude uses server-side ones.
         self.registry = build_registry(config, include_web=config.is_local)
@@ -40,6 +43,11 @@ class Assistant:
             from .agent import get_tools as agent_tools
 
             for tool in agent_tools(runner):
+                self.registry.register(tool)
+        if knowledge is not None:
+            from .tools import knowledge_tool
+
+            for tool in knowledge_tool.get_tools(knowledge):
                 self.registry.register(tool)
         self.tool_ctx = ToolContext(
             config=config, memory=memory, confirm=confirm, notify=notify
@@ -51,7 +59,7 @@ class Assistant:
             self.tool_ctx,
             memory,
             system_fn=lambda: build_system_prompt(
-                config, memory.facts_as_text(), memory.load_summary()
+                config, memory.facts_as_text(), memory.load_summary(), memory.lessons_as_text()
             ),
             emit=emit,
             notify=notify,
@@ -70,8 +78,14 @@ class Assistant:
         """Run one user turn and return the final reply text."""
         self.memory.append_turn("user", user_input)
         self.tool_ctx.tainted = False
-        reply = self.backend.run_turn(user_input)
+        prompt = user_input
+        if self.knowledge is not None and len(self.knowledge):
+            context = self.knowledge.context_for(user_input)
+            if context:
+                prompt = f"{user_input}\n\n[覚えている知識からの参考メモ。関係なければ無視していい]\n{context}"
+        reply = self.backend.run_turn(prompt)
         self.memory.append_turn("assistant", reply)
+        self.last_exchange = {"user": user_input, "reply": reply}
         if self.learner is not None:
             self.learner.note_turn()
         return reply
