@@ -93,6 +93,22 @@ bash scripts/mac/tailscale.sh
 「HTTPS Certificates」のエラーが出たら、<https://login.tailscale.com/admin/dns> で
 MagicDNS と HTTPS Certificates を有効にして、スクリプトをもう一度実行してください。
 
+## Windows や他の PC から使う
+
+Mac がサーバーのままで、Windows・iPad・別の Mac からも使えます。入れるのは
+Tailscale だけで、MIRA 側の設定変更は不要です。
+
+1. Windows に [Tailscale](https://tailscale.com/download/windows) をインストールし、
+   Mac と**同じアカウント**でログイン(タスクトレイのアイコンが接続状態になる)
+2. Edge か Chrome で `https://<Macの名前>.<tailnet>.ts.net/` を開き、トークンを入力
+   (Mac の `.env` の `JARVIS_WEB_TOKEN`。`grep JARVIS_WEB_TOKEN ~/mira/.env` で確認)
+3. アプリのように使いたいときは、Edge なら「アプリ」→「このサイトをアプリとして
+   インストール」、Chrome ならアドレスバー右端のインストールアイコン
+
+PC では Enter で送信、Shift+Enter で改行です。会話履歴・記憶・タスクはすべて
+Mac 側にあるので、スマホと PC で同じ MIRA を続きから使えます。同じ Wi-Fi に
+いる必要はありません(Tailscale 経由)。
+
 ## 自己学習
 
 MIRA は使うほど「あなた向け」になります(モデルの重みは変えず、記憶で学びます)。
