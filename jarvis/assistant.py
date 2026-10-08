@@ -69,6 +69,7 @@ class Assistant:
     def chat(self, user_input: str) -> str:
         """Run one user turn and return the final reply text."""
         self.memory.append_turn("user", user_input)
+        self.tool_ctx.tainted = False
         reply = self.backend.run_turn(user_input)
         self.memory.append_turn("assistant", reply)
         if self.learner is not None:

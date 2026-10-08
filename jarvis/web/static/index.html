@@ -185,6 +185,7 @@ textarea::placeholder{color:var(--muted)}
         <button class="btn sec" id="learnNow">今の会話から学習</button>
         <button class="btn sec" id="resetCtx">会話をリセット</button>
         <button class="btn sec" id="clearHist">履歴を全部消す</button>
+        <button class="btn sec" id="logout">この端末のトークンを消す</button>
       </div>
     </div>
   </section>
@@ -210,6 +211,8 @@ async function api(path, opts = {}) {
   if (o.body && typeof o.body !== 'string') o.body = JSON.stringify(o.body);
   const r = await fetch(path, o);
   if (r.status === 401) { askToken(); throw new Error('token required'); }
+  if (r.status === 403) { alert('このネットワークからの接続は許可されていません(JARVIS_WEB_ALLOW)'); throw new Error('forbidden'); }
+  if (r.status === 429) { alert('トークンの間違いが続いたので、しばらくロックされています'); throw new Error('locked'); }
   return r.json();
 }
 function askToken() {
@@ -305,6 +308,7 @@ async function sendMessage() {
   try {
     const r = await fetch('/api/chat', {method: 'POST', signal: aborter.signal, headers: Object.assign({'Content-Type': 'application/json'}, headers()), body: JSON.stringify({message: text})});
     if (r.status === 401) { askToken(); return; }
+    if (r.status === 403 || r.status === 429) { addError(r.status === 403 ? 'このネットワークからは使えないよ' : 'トークンの間違いが続いたのでロック中'); return; }
     const reader = r.body.getReader(), dec = new TextDecoder(); let pending = '';
     while (true) {
       const {value, done} = await reader.read(); if (done) break;
@@ -448,6 +452,7 @@ async function loadMemory() {
 }
 $('#factAdd').onclick = async () => { const fact = $('#factInput').value.trim(); if (!fact) return; await api('/api/memory', {method: 'POST', body: {fact}}); $('#factInput').value = ''; loadMemory(); };
 $('#learnNow').onclick = async () => { await api('/api/learn', {method: 'POST'}); alert('バックグラウンドで整理中。少ししたら「記憶」を開き直してね'); };
+$('#logout').onclick = () => { localStorage.removeItem('jarvis_token'); location.reload(); };
 $('#clearHist').onclick = async () => { if (confirm('保存された会話履歴をすべて消しますか?(記憶した事実は残ります)')) { await api('/api/clear-history', {method: 'POST'}); chat.innerHTML = '<div class="empty"><div class="orb"></div>なんでも話しかけてね</div>'; addStatus('履歴を消したよ'); } };
 $('#resetCtx').onclick = async () => { if (confirm('会話の文脈をリセットしますか?(記憶は残ります)')) { await api('/api/reset', {method: 'POST'}); addStatus('会話をリセットしました'); } };
 // ── boot ─────────────────────────────────────────────────────

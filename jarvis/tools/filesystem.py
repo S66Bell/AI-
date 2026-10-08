@@ -1,4 +1,9 @@
-"""Filesystem tools: read, write, and list files."""
+"""Filesystem tools: read, write, and list files.
+
+All paths are confined to ``config.fs_root`` (default ``~/.jarvis/workspace``).
+Relative paths are taken from there; absolute paths and ``..`` that escape it
+are refused. Set ``JARVIS_FS_ROOT=/`` to lift the restriction deliberately.
+"""
 
 from __future__ import annotations
 
@@ -9,12 +14,30 @@ from . import Tool, ToolContext
 _MAX_READ = 200_000  # bytes
 
 
-def _resolve(path: str) -> Path:
-    return Path(path).expanduser().resolve()
+class SandboxError(Exception):
+    pass
+
+
+def _resolve(path: str, ctx: ToolContext) -> Path:
+    root = ctx.config.fs_root
+    raw = Path(str(path or ".")).expanduser()
+    candidate = (raw if raw.is_absolute() else root / raw).resolve()
+    if root == Path("/"):
+        return candidate
+    root = root.resolve()
+    if candidate != root and root not in candidate.parents:
+        raise SandboxError(
+            f"'{path}' is outside the allowed folder {root}. "
+            f"Files can only be used inside it (JARVIS_FS_ROOT widens this)."
+        )
+    return candidate
 
 
 def _read_file(tool_input: dict, ctx: ToolContext) -> str:
-    path = _resolve(tool_input["path"])
+    try:
+        path = _resolve(tool_input["path"], ctx)
+    except SandboxError as exc:
+        return f"Error: {exc}"
     if not path.exists():
         return f"Error: no such file: {path}"
     if path.is_dir():
@@ -29,11 +52,17 @@ def _read_file(tool_input: dict, ctx: ToolContext) -> str:
 
 
 def _write_file(tool_input: dict, ctx: ToolContext) -> str:
-    path = _resolve(tool_input["path"])
+    try:
+        path = _resolve(tool_input["path"], ctx)
+    except SandboxError as exc:
+        return f"Error: {exc}"
     content = tool_input.get("content", "")
     append = bool(tool_input.get("append", False))
 
-    if path.exists() and not append:
+    if ctx.tainted:
+        if not ctx.confirm(f"Web content was read this turn. Still write to {path}?"):
+            return "Write declined by the user. File unchanged."
+    elif path.exists() and not append:
         if not ctx.confirm(f"Overwrite existing file {path}?"):
             return "Write declined by the user. File unchanged."
 
@@ -46,7 +75,10 @@ def _write_file(tool_input: dict, ctx: ToolContext) -> str:
 
 
 def _list_directory(tool_input: dict, ctx: ToolContext) -> str:
-    path = _resolve(tool_input.get("path", "."))
+    try:
+        path = _resolve(tool_input.get("path", "."), ctx)
+    except SandboxError as exc:
+        return f"Error: {exc}"
     if not path.exists():
         return f"Error: no such directory: {path}"
     if not path.is_dir():

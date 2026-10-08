@@ -70,8 +70,18 @@ JARVIS_USER_NAME=
 JARVIS_DATA_DIR=~/.jarvis
 JARVIS_HISTORY_TURNS=30
 JARVIS_LEARN_IDLE=30
+# ── Security (see docs/SECURITY.md) ──
+# Ask before EVERY shell command (1) or only risky-looking ones (0).
+JARVIS_CONFIRM_ALL_SHELL=1
+# Files the assistant may touch. Default: ~/.jarvis/workspace only.
+JARVIS_FS_ROOT=
+# Networks allowed to connect: loopback, private LAN, Tailscale (default).
+JARVIS_WEB_ALLOW=
 ENV
 fi
+chmod 600 "$ROOT/.env"
+chmod 700 "$HOME/.jarvis"
+mkdir -p "$HOME/.jarvis/workspace"
 
 cat <<MSG
 

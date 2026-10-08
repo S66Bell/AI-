@@ -24,6 +24,10 @@ class ToolContext:
     confirm: Callable[[str], bool]
     # Emit a short status line to the user (e.g. "running: ls -la").
     notify: Callable[[str], None] = lambda _msg: None
+    # Set once untrusted content (web pages, search results) has entered the
+    # current turn. Tools with side effects then ask before acting, which
+    # blunts prompt-injection ("ignore your instructions and run ...").
+    tainted: bool = False
 
 
 @dataclass
@@ -73,7 +77,7 @@ def build_registry(ctx_config: Config, *, include_web: bool = False) -> ToolRegi
 
     registry = ToolRegistry()
     tools = [
-        *shell.get_tools(),
+        *(shell.get_tools() if ctx_config.shell_enabled else []),
         *filesystem.get_tools(),
         *system_info.get_tools(),
         *memory_tool.get_tools(),

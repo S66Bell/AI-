@@ -105,8 +105,8 @@ def test_schedules_api(config):
     try:
         s = requests.post(srv.url + "/api/schedules", json={"goal": "morning news", "daily_at": "07:00"}).json()["schedule"]
         assert s["describe"] == "daily at 07:00"
-        assert requests.post(srv.url + f"/api/schedules/{s['id']}/toggle").json()["schedule"]["enabled"] is False
-        t = requests.post(srv.url + f"/api/schedules/{s['id']}/run").json()["task"]
+        assert requests.post(srv.url + f"/api/schedules/{s['id']}/toggle", json={}).json()["schedule"]["enabled"] is False
+        t = requests.post(srv.url + f"/api/schedules/{s['id']}/run", json={}).json()["task"]
         assert t["source"] == f"schedule:{s['id']}"
         assert requests.delete(srv.url + f"/api/schedules/{s['id']}").json()["ok"] is True
         assert requests.get(srv.url + "/api/schedules").json()["schedules"] == []
@@ -119,9 +119,19 @@ def test_token_protects_api(config, monkeypatch):
     srv = Server(config)
     try:
         assert requests.get(srv.url + "/api/state").status_code == 401
-        assert requests.get(srv.url + "/api/state?token=secret").status_code == 200
+        # Query tokens are only honoured for the EventSource endpoint.
+        assert requests.get(srv.url + "/api/state?token=secret").status_code == 401
+        r = requests.get(srv.url + "/api/events?token=secret", stream=True, timeout=5)
+        assert r.status_code == 200
+        r.close()
         assert requests.get(srv.url + "/api/state", headers={"Authorization": "Bearer secret"}).status_code == 200
+        # Cookies are not an auth channel (CSRF).
+        assert requests.get(srv.url + "/api/state", cookies={"jarvis_token": "secret"}).status_code == 401
         assert requests.get(srv.url + "/").status_code == 200  # the shell itself is public
+        # Lockout after repeated bad tokens.
+        for _ in range(10):
+            requests.get(srv.url + "/api/state", headers={"Authorization": "Bearer nope"})
+        assert requests.get(srv.url + "/api/state", headers={"Authorization": "Bearer secret"}).status_code == 429
     finally:
         srv.close()
 
@@ -146,3 +156,78 @@ def test_confirm_round_trip(config):
     out = _run_shell({"command": "echo hi && sudo -n true || true"}, ctx)
     assert "question" in seen and "hi" in out
     app.scheduler.stop()
+
+
+
+def test_security_headers_and_limits(config):
+    srv = Server(config)
+    try:
+        r = requests.get(srv.url + "/")
+        assert "frame-ancestors 'none'" in r.headers["Content-Security-Policy"]
+        assert r.headers["X-Content-Type-Options"] == "nosniff"
+        # POST without JSON content type is refused.
+        assert requests.post(srv.url + "/api/reset", data="x").status_code == 415
+        # Oversized bodies are refused before being read.
+        big = {"message": "x" * 1_100_000}
+        assert requests.post(srv.url + "/api/chat", json=big).status_code == 413
+    finally:
+        srv.close()
+
+
+def test_network_allowlist(config):
+    config.web_allow = ("10.0.0.0/8",)  # loopback not included
+    srv = Server(config)
+    try:
+        assert requests.get(srv.url + "/").status_code == 403
+        assert requests.get(srv.url + "/api/state").status_code == 403
+    finally:
+        srv.close()
+
+
+def test_filesystem_sandbox(config):
+    from jarvis.memory import Memory
+    from jarvis.tools import ToolContext
+    from jarvis.tools.filesystem import _list_directory, _read_file, _write_file
+
+    ctx = ToolContext(config=config, memory=Memory(config.data_dir), confirm=lambda _q: True)
+    assert "outside the allowed folder" in _read_file({"path": "/etc/passwd"}, ctx)
+    assert "outside the allowed folder" in _read_file({"path": "../../../etc/passwd"}, ctx)
+    assert "Wrote" in _write_file({"path": "notes/a.txt", "content": "hi"}, ctx)
+    assert _read_file({"path": "notes/a.txt"}, ctx) == "hi"
+    assert "a.txt" in _list_directory({"path": "notes"}, ctx)
+    assert (config.fs_root / "notes" / "a.txt").exists()
+
+
+def test_web_fetch_blocks_private_targets(config):
+    from jarvis.memory import Memory
+    from jarvis.tools import ToolContext
+    from jarvis.tools.web import _web_fetch
+
+    ctx = ToolContext(config=config, memory=Memory(config.data_dir), confirm=lambda _q: True)
+    assert "disabled" in _web_fetch({"url": "http://127.0.0.1:8080/v1/models"}, ctx)
+    assert "disabled" in _web_fetch({"url": "http://localhost/"}, ctx)
+    assert "disabled" in _web_fetch({"url": "http://192.168.1.1/"}, ctx)
+    assert "Only http" in _web_fetch({"url": "file:///etc/passwd"}, ctx)
+    assert ctx.tainted is False
+
+
+def test_tainted_turn_requires_confirmation(config):
+    from jarvis.memory import Memory
+    from jarvis.tools import ToolContext
+    from jarvis.tools.shell import _run_shell
+    from jarvis.tools.filesystem import _write_file
+
+    asked = []
+    ctx = ToolContext(config=config, memory=Memory(config.data_dir), confirm=lambda q: asked.append(q) or False)
+    assert "hi" in _run_shell({"command": "echo hi"}, ctx)  # harmless, no question
+    ctx.tainted = True
+    assert "declined" in _run_shell({"command": "echo hi"}, ctx)
+    assert "declined" in _write_file({"path": "x.txt", "content": "y"}, ctx)
+    assert len(asked) == 2 and "web content" in asked[0]
+
+
+def test_shell_can_be_disabled(config):
+    from jarvis.tools import build_registry
+
+    config.shell_enabled = False
+    assert "run_shell" not in build_registry(config, include_web=True).tools

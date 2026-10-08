@@ -29,6 +29,20 @@ _DANGEROUS = [
     r"\bsudo\b",
     r"\bcurl\b.*\|\s*(ba)?sh",   # curl | sh
     r"\bwget\b.*\|\s*(ba)?sh",
+    # Sending data somewhere (exfiltration) or pulling remote code.
+    r"\bcurl\b.*\s(-d|--data|-F|--form|-T|--upload-file|-X\s*POST|-X\s*PUT)\b",
+    r"\bwget\b.*--post",
+    r"\b(ssh|scp|sftp|rsync|nc|ncat|netcat|telnet)\b",
+    r"\b(python3?|perl|ruby|node)\b.*\s-c\s",   # inline scripts
+    r"\beval\b",
+    r"\bbase64\b.*\|",
+    # macOS: settings, keychain, automation, services, disks.
+    r"\b(osascript|launchctl|defaults\s+write|security\b|diskutil|tmutil|networksetup|pmset|csrutil|spctl|killall)\b",
+    # Credentials and keys.
+    r"(\.ssh/|\.aws/|\.gnupg/|id_rsa|id_ed25519|\.env\b|keychain)",
+    r"\bcrontab\b",
+    r"\b(kill|pkill)\b.*-9",
+    r">\s*~?/(etc|usr|bin|sbin|System|Library)/",
 ]
 
 
@@ -41,21 +55,27 @@ def _run_shell(tool_input: dict, ctx: ToolContext) -> str:
     if not command:
         return "Error: no command provided."
 
-    timeout = int(tool_input.get("timeout", 60))
+    timeout = max(1, min(int(tool_input.get("timeout", 60)), 600))
     must_confirm = ctx.config.confirm_all_shell or _looks_dangerous(command)
+    if ctx.tainted:
+        # Untrusted web content was read this turn: never run anything unasked.
+        must_confirm = True
 
     if must_confirm:
-        if not ctx.confirm(f"Run shell command?\n    {command}"):
+        why = " (web content was read this turn)" if ctx.tainted else ""
+        if not ctx.confirm(f"Run shell command?{why}\n    {command}"):
             return "Command declined by the user. Not executed."
 
     ctx.notify(f"running: {command}")
     try:
+        cwd = ctx.config.fs_root if ctx.config.fs_root.is_dir() else None
         proc = subprocess.run(
             command,
             shell=True,
             capture_output=True,
             text=True,
             timeout=timeout,
+            cwd=str(cwd) if cwd else None,
         )
     except subprocess.TimeoutExpired:
         return f"Command timed out after {timeout}s."

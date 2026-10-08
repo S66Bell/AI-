@@ -68,6 +68,21 @@ class Config:
     # How many past turns to replay into the prompt at startup. Small keeps
     # a phone fast; the rolling summary covers everything older.
     history_turns: int
+    # ── Security ──
+    # Client networks allowed to talk to the web UI (CIDRs). Default: loopback,
+    # private LANs and Tailscale. Anything else gets 403 even with the token.
+    web_allow: tuple
+    # Optional TLS for the web UI (PEM files). Tailscale Serve is the easier way.
+    web_cert: str
+    web_key: str
+    # Directory the file tools may touch. "/" lifts the restriction.
+    fs_root: Path
+    # Whether the run_shell tool exists at all.
+    shell_enabled: bool
+    # Record message text in web.log (off: only timings and lengths).
+    log_messages: bool
+    # Let web_fetch reach private/loopback addresses (router pages, local services).
+    fetch_private: bool
 
     @property
     def is_openai_compat(self) -> bool:
@@ -112,6 +127,11 @@ class Config:
             openai_model = os.environ.get("JARVIS_OPENAI_MODEL", "local")
             openai_api_key = os.environ.get("JARVIS_OPENAI_API_KEY", "no-key")
 
+        fs_root_raw = os.environ.get("JARVIS_FS_ROOT", "").strip()
+        fs_root = Path(fs_root_raw).expanduser().resolve() if fs_root_raw else (data_dir / "workspace")
+        if fs_root != Path("/"):
+            fs_root.mkdir(parents=True, exist_ok=True)
+
         return cls(
             provider=provider,
             api_key=os.environ.get("ANTHROPIC_API_KEY"),
@@ -144,4 +164,19 @@ class Config:
                 os.environ.get("JARVIS_LEARN_IDLE", "5" if provider in ("groq", "claude") else "180")
             ),
             history_turns=int(os.environ.get("JARVIS_HISTORY_TURNS", "16")),
+            web_allow=tuple(
+                x.strip()
+                for x in os.environ.get(
+                    "JARVIS_WEB_ALLOW",
+                    "127.0.0.0/8,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,"
+                    "100.64.0.0/10,fe80::/10,fd00::/8",
+                ).split(",")
+                if x.strip()
+            ),
+            web_cert=os.environ.get("JARVIS_WEB_CERT", "").strip(),
+            web_key=os.environ.get("JARVIS_WEB_KEY", "").strip(),
+            fs_root=fs_root,
+            shell_enabled=_bool("JARVIS_SHELL", True),
+            log_messages=_bool("JARVIS_LOG_MESSAGES", False),
+            fetch_private=_bool("JARVIS_FETCH_PRIVATE", False),
         )

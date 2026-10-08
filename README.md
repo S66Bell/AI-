@@ -231,6 +231,14 @@ live on your disk, the conversation never leaves your machine, and after the
 one-time model download it needs no internet and no third-party service. That's
 a genuinely independent, private, zero-cost AI you fully own.
 
+## Security
+
+Token auth (header only, constant-time, lockout), private-network allowlist,
+CSP and friends, file tools confined to a workspace folder, confirmation for
+risky shell commands and for *any* side effect after web content was read
+(prompt-injection guard), SSRF blocking in web_fetch, optional TLS. Details
+and knobs: [docs/SECURITY.md](docs/SECURITY.md) (Japanese).
+
 ## Safety
 
 JARVIS runs with your authority on your machine, but it asks before doing

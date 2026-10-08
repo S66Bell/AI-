@@ -22,9 +22,12 @@ answered through ``/api/confirm``.
 
 from __future__ import annotations
 
+import hmac
+import ipaddress
 import json
 import mimetypes
 import queue
+import ssl
 import threading
 import time
 import uuid
@@ -44,6 +47,20 @@ from ..scheduler import Scheduler
 
 STATIC_DIR = Path(__file__).parent / "static"
 CONFIRM_TIMEOUT = 180.0  # seconds to wait for a yes/no from the phone
+MAX_BODY = 1_000_000  # bytes; nothing the UI sends is anywhere near this
+AUTH_MAX_FAILURES = 10  # wrong tokens from one address before a lockout
+AUTH_LOCKOUT = 600.0  # seconds
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer",
+    "Permissions-Policy": "camera=(), geolocation=(), payment=()",
+    "Content-Security-Policy": (
+        "default-src 'self'; script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+        "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+    ),
+}
 
 
 class _Sink:
@@ -81,6 +98,56 @@ class JarvisWeb:
         self._event_clients: list[queue.Queue] = []
         self._event_lock = threading.Lock()
         self.runner.subscribe(self._on_task_event)
+        # Security: allowed client networks and per-address auth lockout.
+        self._allowed_nets = []
+        for cidr in config.web_allow:
+            try:
+                self._allowed_nets.append(ipaddress.ip_network(cidr, strict=False))
+            except ValueError:
+                self.log(f"ignoring bad JARVIS_WEB_ALLOW entry: {cidr!r}")
+        self._auth_failures: dict[str, list] = {}  # ip -> [count, locked_until]
+        self._auth_lock = threading.Lock()
+
+    # ── security helpers ───────────────────────────────────────────────
+    def client_allowed(self, ip: str) -> bool:
+        if not self._allowed_nets:
+            return True
+        try:
+            addr = ipaddress.ip_address(ip.split("%")[0])
+        except ValueError:
+            return False
+        if addr.version == 6 and addr.ipv4_mapped:
+            addr = addr.ipv4_mapped
+        return any(addr in net for net in self._allowed_nets)
+
+    def token_ok(self, presented: str | None) -> bool:
+        token = self.config.web_token
+        if not token:
+            return True
+        return bool(presented) and hmac.compare_digest(presented.encode(), token.encode())
+
+    def auth_locked(self, ip: str) -> bool:
+        with self._auth_lock:
+            entry = self._auth_failures.get(ip)
+            if not entry:
+                return False
+            if entry[1] and time.monotonic() < entry[1]:
+                return True
+            if entry[1] and time.monotonic() >= entry[1]:
+                del self._auth_failures[ip]
+            return False
+
+    def auth_failed(self, ip: str) -> None:
+        with self._auth_lock:
+            entry = self._auth_failures.setdefault(ip, [0, 0.0])
+            entry[0] += 1
+            if entry[0] >= AUTH_MAX_FAILURES:
+                entry[1] = time.monotonic() + AUTH_LOCKOUT
+                self.log(f"auth lockout for {ip} after {entry[0]} bad tokens")
+
+    def auth_succeeded(self, ip: str) -> None:
+        with self._auth_lock:
+            self._auth_failures.pop(ip, None)
 
     def log(self, msg: str) -> None:
         """Append a timestamped line to ~/.jarvis/web.log (for doctor.sh)."""
@@ -161,7 +228,10 @@ class JarvisWeb:
             return
         started = time.monotonic()
         self._turn_started = started
-        self.log(f"chat start: {message[:80]!r}")
+        if self.config.log_messages:
+            self.log(f"chat start: {message[:80]!r}")
+        else:
+            self.log(f"chat start ({len(message)} chars)")
         try:
             self._sink_local.sink = sink
             assistant = self.ensure_assistant()
@@ -255,10 +325,19 @@ class JarvisWeb:
         handler = _make_handler(self)
         server = _QuietServer((host, port), handler)
         server.daemon_threads = True
+        scheme = "http"
+        if self.config.web_cert and self.config.web_key:
+            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+            ctx.load_cert_chain(self.config.web_cert, self.config.web_key)
+            server.socket = ctx.wrap_socket(server.socket, server_side=True)
+            scheme = "https"
         shown = "localhost" if host in ("127.0.0.1", "0.0.0.0", "") else host
-        print(f"{self.config.assistant_name} web UI: http://{shown}:{port}/")
+        print(f"{self.config.assistant_name} web UI: {scheme}://{shown}:{port}/")
         if host == "0.0.0.0" and not self.config.web_token:
             print("  warning: listening on all interfaces without JARVIS_WEB_TOKEN set")
+        if self.config.fs_root == Path("/"):
+            print("  note: file tools are unrestricted (JARVIS_FS_ROOT=/)")
         try:
             server.serve_forever()
         except KeyboardInterrupt:
@@ -288,6 +367,36 @@ def _make_handler(app: JarvisWeb):
         def log_message(self, fmt, *args):  # keep the phone's terminal quiet
             return
 
+        def end_headers(self):
+            for k, v in SECURITY_HEADERS.items():
+                self.send_header(k, v)
+            super().end_headers()
+
+        def _client_ip(self) -> str:
+            return self.client_address[0]
+
+        def _gate(self, query: dict, *, api: bool, allow_query_token: bool = False) -> bool:
+            """Network allowlist, lockout and token check. Sends the error itself."""
+            ip = self._client_ip()
+            if not app.client_allowed(ip):
+                self._json(HTTPStatus.FORBIDDEN, {"error": "this network is not allowed"})
+                return False
+            if not api:
+                return True
+            if app.auth_locked(ip):
+                self._json(HTTPStatus.TOO_MANY_REQUESTS, {"error": "too many bad tokens; try later"})
+                return False
+            header = self.headers.get("Authorization", "")
+            presented = header[7:] if header.startswith("Bearer ") else None
+            if presented is None and allow_query_token:
+                presented = query.get("token", [None])[0]
+            if app.token_ok(presented):
+                app.auth_succeeded(ip)
+                return True
+            app.auth_failed(ip)
+            self._json(HTTPStatus.UNAUTHORIZED, {"error": "token required"})
+            return False
+
         # ── helpers ──────────────────────────────────────────────────
         def _json(self, status: int, payload) -> None:
             body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -301,8 +410,16 @@ def _make_handler(app: JarvisWeb):
             except (BrokenPipeError, ConnectionResetError):
                 pass  # the browser went away (screen off, tab closed); nothing to do
 
-        def _read_json(self) -> dict:
+        def _read_json(self) -> dict | None:
+            """Parse the JSON body; None means the request was rejected."""
+            ctype = self.headers.get("Content-Type", "")
+            if not ctype.lower().startswith("application/json"):
+                self._json(HTTPStatus.UNSUPPORTED_MEDIA_TYPE, {"error": "send application/json"})
+                return None
             length = int(self.headers.get("Content-Length") or 0)
+            if length > MAX_BODY:
+                self._json(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"error": "body too large"})
+                return None
             if length <= 0:
                 return {}
             raw = self.rfile.read(length)
@@ -311,18 +428,6 @@ def _make_handler(app: JarvisWeb):
             except (json.JSONDecodeError, UnicodeDecodeError):
                 return {}
             return data if isinstance(data, dict) else {}
-
-        def _authorised(self, query: dict) -> bool:
-            token = app.config.web_token
-            if not token:
-                return True
-            header = self.headers.get("Authorization", "")
-            if header == f"Bearer {token}":
-                return True
-            if query.get("token", [""])[0] == token:
-                return True
-            cookie = self.headers.get("Cookie", "")
-            return f"jarvis_token={token}" in cookie
 
         def _start_sse(self) -> None:
             self.send_response(HTTPStatus.OK)
@@ -366,14 +471,15 @@ def _make_handler(app: JarvisWeb):
             path = url.path
 
             if path in ("/", "/index.html"):
-                return self._static("index.html")
+                return self._gate(query, api=False) and self._static("index.html")
             if path in ("/manifest.webmanifest", "/sw.js", "/icon-192.png", "/icon-512.png", "/icon.svg"):
-                return self._static(path.lstrip("/"))
+                return self._gate(query, api=False) and self._static(path.lstrip("/"))
 
             if not path.startswith("/api/"):
                 return self._json(HTTPStatus.NOT_FOUND, {"error": "not found"})
-            if not self._authorised(query):
-                return self._json(HTTPStatus.UNAUTHORIZED, {"error": "token required"})
+            # EventSource can't send headers, so /api/events may carry the token in the query.
+            if not self._gate(query, api=True, allow_query_token=(path == "/api/events")):
+                return None
 
             if path == "/api/state":
                 return self._json(HTTPStatus.OK, app.state())
@@ -410,9 +516,11 @@ def _make_handler(app: JarvisWeb):
             path = url.path
             if not path.startswith("/api/"):
                 return self._json(HTTPStatus.NOT_FOUND, {"error": "not found"})
-            if not self._authorised(query):
-                return self._json(HTTPStatus.UNAUTHORIZED, {"error": "token required"})
+            if not self._gate(query, api=True):
+                return None
             body = self._read_json()
+            if body is None:
+                return None
 
             if path == "/api/chat":
                 message = str(body.get("message", "")).strip()
@@ -489,8 +597,8 @@ def _make_handler(app: JarvisWeb):
         def do_DELETE(self) -> None:
             url = urlparse(self.path)
             query = parse_qs(url.query)
-            if not self._authorised(query):
-                return self._json(HTTPStatus.UNAUTHORIZED, {"error": "token required"})
+            if not self._gate(query, api=True):
+                return None
             if url.path.startswith("/api/schedules/"):
                 ok = app.scheduler.remove(url.path.split("/")[3])
                 return self._json(HTTPStatus.OK if ok else HTTPStatus.NOT_FOUND, {"ok": ok})

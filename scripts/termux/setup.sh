@@ -90,6 +90,10 @@ JARVIS_AGENT_MAX_STEPS=30
 ENV
 fi
 
+chmod 600 "$ROOT/.env" 2>/dev/null || true
+chmod 700 "$HOME/.jarvis" 2>/dev/null || true
+mkdir -p "$HOME/.jarvis/workspace"
+
 # Remember which model start.sh should load.
 echo "$MODELS/$FILE" > "$ROOT/.jarvis-model-path"
 

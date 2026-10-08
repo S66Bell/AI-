@@ -69,7 +69,7 @@ def test_cancel_endpoint(config):
 
     srv = Server(config)
     try:
-        assert requests.post(srv.url + "/api/chat/cancel").json()["ok"] is False  # nothing running
+        assert requests.post(srv.url + "/api/chat/cancel", json={}).json()["ok"] is False  # nothing running
     finally:
         srv.close()
 

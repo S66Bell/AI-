@@ -82,6 +82,11 @@ tailscale serve --bg 8765
 
 表示された `https://<Macの名前>.<tailnet>.ts.net` をスマホで開いてください。
 
+## セキュリティ
+
+既定で、トークン認証、プライベートネットワーク限定、ファイル操作のサンドボックス、
+全シェルコマンドの確認制が有効です。詳細と調整は [SECURITY.md](SECURITY.md)。
+
 ## 頭脳を切り替える
 
 - Groq の無料枠(超高速、会話は Groq のサーバーへ): `bash scripts/brain.sh groq gsk_キー`

@@ -7,6 +7,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 [ -f .env ] || cp .env.example .env
+chmod 600 .env 2>/dev/null || true
 set_kv() {  # key value
   if grep -qE "^$1=" .env; then sed -i "s|^$1=.*|$1=$2|" .env; else printf '%s=%s\n' "$1" "$2" >> .env; fi
 }
